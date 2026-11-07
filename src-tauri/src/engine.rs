@@ -450,9 +450,16 @@ mod tests {
         assert_eq!(p, PathBuf::from("C_").join("Windows").join("evil.dll"));
         let base = PathBuf::from(r"D:\Downloads\Show");
         assert!(base.join(&p).starts_with(&base));
-        assert!(ensure_relative(Path::new("C:x")).is_err());
         assert!(ensure_relative(Path::new("..")).is_err());
-        assert!(ensure_relative(Path::new(r"\\server\share")).is_err());
+        // Drive and network paths only mean something on Windows; elsewhere "C:x" is
+        // an ordinary file name
+        #[cfg(windows)]
+        {
+            assert!(ensure_relative(Path::new("C:x")).is_err());
+            assert!(ensure_relative(Path::new(r"\\server\share")).is_err());
+        }
+        #[cfg(unix)]
+        assert!(ensure_relative(Path::new("/etc/passwd")).is_err());
     }
 }
 

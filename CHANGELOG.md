@@ -2,6 +2,21 @@
 
 All notable changes to Flowbit. Versions follow [Semantic Versioning](https://semver.org).
 
+## [1.4.0] - 2026-11-07
+
+### Added
+
+- **Linux**: `.deb` (Ubuntu, Debian…), `.rpm` (Fedora, openSUSE…) and AppImage packages, built on
+  Ubuntu 22.04. Everything works as on Windows, with these differences:
+  - Videos play in the system's mpv (the packages install it). Your own mpv settings are kept.
+  - Flowbit makes itself the app for magnet links and `.torrent` files with `xdg-mime`.
+  - API keys are kept in a file only your account can read, as Linux has no built-in equivalent
+    of Windows DPAPI.
+  - Dropping `.torrent` files and magnet links works; to share your own files, use **Add torrent
+    → Share a folder or a file**.
+  - Executable files, `.desktop` launchers and scripts from torrents are shown in their folder
+    instead of being opened.
+
 ## [1.3.1] - 2026-11-07
 
 ### Added
@@ -64,5 +79,6 @@ First public release.
 - Programs and scripts from torrents are revealed, not run; other downloads get the Mark of the Web
 - The window can only navigate inside the app and only listen to events
 
+[1.4.0]: https://github.com/GENERAL868/flowbit/releases/tag/v1.4.0
 [1.3.1]: https://github.com/GENERAL868/flowbit/releases/tag/v1.3.1
 [1.3.0]: https://github.com/GENERAL868/flowbit/releases/tag/v1.3.0

@@ -1,0 +1,61 @@
+name: Linux packages
+
+# When a release is published (with the Windows files), builds the Linux packages from
+# its tag and attaches them. Can also be run by hand for an existing release.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag, like v1.4.0
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  linux:
+    runs-on: ubuntu-22.04
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Build dependencies
+        run: ./.github/scripts/linux-deps.sh
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Build the packages
+        run: |
+          npm ci
+          npx tauri build --bundles deb,rpm,appimage
+
+      - name: Start the app
+        run: ./.github/scripts/linux-smoke-test.sh src-tauri/target/release/flowbit
+
+      - name: Attach them to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${TAG#v}"
+          out="$RUNNER_TEMP/release"
+          mkdir -p "$out"
+          b=src-tauri/target/release/bundle
+          cp $b/deb/*.deb "$out/Flowbit-$version-linux-amd64.deb"
+          cp $b/rpm/*.rpm "$out/Flowbit-$version-linux-x86_64.rpm"
+          cp $b/appimage/*.AppImage "$out/Flowbit-$version-linux-x86_64.AppImage"
+          (cd "$out" && sha256sum * > "Flowbit-$version-linux-SHA256SUMS.txt" && cat *.txt)
+          gh release upload "$TAG" "$out"/* --clobber

@@ -30,17 +30,20 @@ body:
   - type: dropdown
     id: install
     attributes:
-      label: Installed or portable?
+      label: Which download?
       options:
-        - Installer
-        - Portable
+        - Windows installer
+        - Windows portable
+        - Linux .deb
+        - Linux .rpm
+        - Linux AppImage
     validations:
       required: true
   - type: input
-    id: windows
+    id: os
     attributes:
-      label: Windows version
-      placeholder: Windows 11 24H2
+      label: Operating system
+      placeholder: Windows 11 24H2, Ubuntu 24.04, Fedora 41…
     validations:
       required: true
   - type: dropdown
