@@ -1,7 +1,8 @@
-//! API keys for translation services (DeepL, Gemini, Groq...), stored in keys.json
-//! encrypted with Windows DPAPI: only this Windows account on this computer can read
-//! them. The window can save or remove a key, and see whether one is saved, but never
-//! reads a key back.
+//! API keys for translation services (DeepL, Gemini, Groq...), stored in keys.json.
+//! On Windows they're encrypted with DPAPI: only this Windows account on this computer
+//! can read them. Elsewhere the file is readable by the user only (mode 0600). The
+//! window can save or remove a key, and see whether one is saved, but never reads a
+//! key back.
 
 use std::{
     collections::HashMap,
@@ -49,7 +50,7 @@ impl KeyStore {
             all.insert(service.to_owned(), to_hex(&protect(key.as_bytes())?));
         }
         let tmp = self.path.with_extension("json.tmp");
-        std::fs::write(&tmp, serde_json::to_vec(&all)?)?;
+        write_private(&tmp, &serde_json::to_vec(&all)?)?;
         std::fs::rename(tmp, &self.path)?;
         Ok(())
     }
@@ -63,6 +64,20 @@ impl KeyStore {
             .map(|s| s.to_string())
             .collect()
     }
+}
+
+/// Writes a file only the current user can read (on Unix; on Windows the data is
+/// encrypted instead and the profile folder is already private)
+fn write_private(path: &Path, data: &[u8]) -> std::io::Result<()> {
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create(true).truncate(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    use std::io::Write;
+    options.open(path)?.write_all(data)
 }
 
 fn to_hex(bytes: &[u8]) -> String {
@@ -195,9 +210,19 @@ mod tests {
         let store = KeyStore::new(&dir);
         store.set("deepl", "abc123:fx").unwrap();
         assert_eq!(store.get("deepl").as_deref(), Some("abc123:fx"));
+        #[cfg(windows)]
         assert!(!std::fs::read_to_string(dir.join("keys.json"))
             .unwrap()
             .contains("abc123"));
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = std::fs::metadata(dir.join("keys.json"))
+                .unwrap()
+                .permissions()
+                .mode();
+            assert_eq!(mode & 0o077, 0, "keys.json must be private");
+        }
         assert_eq!(store.saved(), vec!["deepl".to_string()]);
         store.set("deepl", "").unwrap();
         assert_eq!(store.get("deepl"), None);

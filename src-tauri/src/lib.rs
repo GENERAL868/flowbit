@@ -3,6 +3,9 @@ mod drop;
 mod engine;
 #[cfg(windows)]
 mod handlers;
+#[cfg(target_os = "linux")]
+#[path = "handlers_linux.rs"]
+mod handlers;
 mod i18n;
 mod keys;
 mod library;
@@ -77,6 +80,20 @@ fn err(e: impl std::fmt::Display) -> String {
     e.to_string()
 }
 
+/// mpv missing (on Linux it comes from the system) gets a message saying how to
+/// install it
+fn player_error(state: &AppState, e: anyhow::Error) -> String {
+    let missing = e.chain().any(|c| {
+        c.downcast_ref::<std::io::Error>()
+            .is_some_and(|io| io.kind() == std::io::ErrorKind::NotFound)
+    });
+    if missing {
+        i18n::t(state.lang(), "err.noMpv").to_string()
+    } else {
+        err(e)
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Commands for the window
 
@@ -84,6 +101,8 @@ fn err(e: impl std::fmt::Display) -> String {
 #[serde(rename_all = "camelCase")]
 struct AppInfo {
     version: &'static str,
+    /// "windows", "linux"…, for the few texts that differ
+    platform: &'static str,
     prefs: Prefs,
     is_default_app: bool,
     start_on_login: bool,
@@ -93,6 +112,7 @@ struct AppInfo {
 fn app_info(app: AppHandle, state: State<'_, AppState>) -> AppInfo {
     AppInfo {
         version: env!("CARGO_PKG_VERSION"),
+        platform: std::env::consts::OS,
         prefs: state.prefs(),
         is_default_app: is_default_app(),
         start_on_login: app.autolaunch().is_enabled().unwrap_or(false),
@@ -327,8 +347,7 @@ async fn play(
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or(file.name.clone());
-    // A pipe name nobody can guess, so other programs can't take mpv's place
-    let pipe = format!(r"\\.\pipe\flowbit-mpv-{}", stream_server::random_secret());
+    let pipe = library::ipc_address(&stream_server::random_secret());
     player::play(
         &state.mpv,
         &state.data_dir,
@@ -337,7 +356,7 @@ async fn play(
         &state.prefs(),
         &pipe,
     )
-    .map_err(err)?;
+    .map_err(|e| player_error(&state, e))?;
 
     let key = library::key(
         &engine.handle(id).map_err(err)?.info_hash().as_string(),
@@ -404,9 +423,32 @@ const RUNNABLE_EXTENSIONS: &[&str] = &[
     "img",
     "vhd",
     "vhdx",
+    // Linux: launchers, scripts, packages and programs
+    "desktop",
+    "sh",
+    "bash",
+    "zsh",
+    "run",
+    "bin",
+    "appimage",
+    "py",
+    "pl",
+    "rb",
+    "deb",
+    "rpm",
+    "flatpakref",
+    "so",
 ];
 
 fn is_runnable(path: &Path) -> bool {
+    // On Linux, any file marked executable can run
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if std::fs::metadata(path).is_ok_and(|m| m.permissions().mode() & 0o111 != 0) {
+            return true;
+        }
+    }
     path.extension()
         .and_then(|e| e.to_str())
         .map(|e| RUNNABLE_EXTENSIONS.contains(&e.to_ascii_lowercase().as_str()))
@@ -928,7 +970,7 @@ fn quit_app(app: &AppHandle) {
 }
 
 fn register_handlers(app: &AppHandle) -> anyhow::Result<()> {
-    #[cfg(windows)]
+    #[cfg(any(windows, target_os = "linux"))]
     {
         let exe = std::env::current_exe()?;
         let icon = app
@@ -939,19 +981,19 @@ fn register_handlers(app: &AppHandle) -> anyhow::Result<()> {
             .filter(|p| p.exists());
         handlers::register(&exe, icon.as_deref())?;
     }
-    #[cfg(not(windows))]
+    #[cfg(not(any(windows, target_os = "linux")))]
     let _ = app;
     Ok(())
 }
 
 fn is_default_app() -> bool {
-    #[cfg(windows)]
+    #[cfg(any(windows, target_os = "linux"))]
     {
         std::env::current_exe()
             .map(|exe| handlers::is_registered(&exe))
             .unwrap_or(false)
     }
-    #[cfg(not(windows))]
+    #[cfg(not(any(windows, target_os = "linux")))]
     false
 }
 
@@ -975,7 +1017,22 @@ fn disk_space(path: &Path) -> Option<(u64, u64)> {
     (ok != 0).then_some((free, total))
 }
 
-#[cfg(not(windows))]
+// statvfs field types differ between platforms (u32 or u64)
+#[cfg(unix)]
+#[allow(clippy::unnecessary_cast)]
+fn disk_space(path: &Path) -> Option<(u64, u64)> {
+    use std::os::unix::ffi::OsStrExt;
+    let existing = path.ancestors().find(|p| p.exists())?;
+    let c_path = std::ffi::CString::new(existing.as_os_str().as_bytes()).ok()?;
+    let mut st: libc::statvfs = unsafe { std::mem::zeroed() };
+    if unsafe { libc::statvfs(c_path.as_ptr(), &mut st) } != 0 {
+        return None;
+    }
+    let block = st.f_frsize as u64;
+    Some((st.f_bavail as u64 * block, st.f_blocks as u64 * block))
+}
+
+#[cfg(not(any(windows, unix)))]
 fn disk_space(_path: &Path) -> Option<(u64, u64)> {
     None
 }

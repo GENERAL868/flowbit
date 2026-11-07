@@ -168,6 +168,11 @@ function visibleTorrents () {
     .sort((a, b) => b.id - a.id)
 }
 
+// Texts that mention Windows have a ".linux" variant
+function forOs (key) {
+  return state.info && state.info.platform === 'linux' ? key + '.linux' : key
+}
+
 function isPlayable (t) {
   const files = state.files[t.id]
   return !!files && files.some((f) => !f.padding && MEDIA.test(f.name))
@@ -656,7 +661,7 @@ function keyField (service, serviceName) {
     : `<input type="password" class="input mono medium" dir="ltr" id="key-input" placeholder="${tt('tr2.keyPlaceholder')}" autocomplete="off" spellcheck="false">
        <button type="button" class="btn small primary" data-action="save-key" data-service="${service}">${tt('tr2.save')}</button>`
   return `<div class="pref-row"><span class="text"><span class="label">${tt('tr2.key')}</span>
-      <span class="hint">${tt('tr2.keyHint', { service: serviceName })}</span></span>
+      <span class="hint">${tt(forOs('tr2.keyHint'), { service: serviceName })}</span></span>
       <span class="key-control">${control}</span></div>`
 }
 
@@ -906,7 +911,7 @@ function renderPreferences () {
     <div class="page preferences">
       <div class="page-title"><h1>${tt('prefs.title')}</h1></div>
       <section class="pref-section"><h2>${tt('prefs.general')}</h2>
-        <div class="pref-row"><div class="text"><span class="label">${tt('prefs.language')}</span><span class="hint">${tt('prefs.languageHint')}</span></div>
+        <div class="pref-row"><div class="text"><span class="label">${tt('prefs.language')}</span><span class="hint">${tt(forOs('prefs.languageHint'))}</span></div>
           <div class="segmented" role="group" aria-label="${tt('prefs.language')}">${segmented('language', [['system', tt('prefs.system')], ['en', 'English'], ['ar', 'العربية']])}</div></div>
         <div class="pref-row"><div class="text"><span class="label">${tt('prefs.theme')}</span><span class="hint">${tt('prefs.themeHint')}</span></div>
           <div class="segmented" role="group" aria-label="${tt('prefs.theme')}">${segmented('theme', [['light', tt('prefs.light')], ['dark', tt('prefs.dark')], ['system', tt('prefs.system')]])}</div></div>
@@ -1475,8 +1480,11 @@ async function start () {
     if (window.chrome && window.chrome.webview && window.chrome.webview.postMessageWithAdditionalObjects) {
       window.chrome.webview.postMessageWithAdditionalObjects('flowbit-drop', files)
     } else {
-      for (const file of files) {
-        if (!/\.torrent$/i.test(file.name)) continue
+      // Other webviews (Linux) don't say where dropped files are: .torrent files are
+      // read instead, and sharing goes through Add torrent
+      const torrents = Array.from(files).filter((file) => /\.torrent$/i.test(file.name))
+      if (!torrents.length) showError(t('msg.dropShareElsewhere'))
+      for (const file of torrents) {
         file.arrayBuffer().then((buf) => invoke('add_bytes', { bytes: Array.from(new Uint8Array(buf)) }))
           .then(() => { sound('add'); refresh() }, showError)
       }

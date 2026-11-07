@@ -66,6 +66,14 @@ pub fn play(
     if !prefs.audio_languages.trim().is_empty() {
         cmd.arg(format!("--alang={}", prefs.audio_languages.trim()));
     }
+    // The bundled mpv on Windows reads these from portable_config/mpv.conf. The
+    // system's mpv elsewhere keeps the user's own config, plus what streaming needs:
+    // buffer ahead, and wait for slow peers instead of giving up.
+    #[cfg(not(windows))]
+    cmd.arg("--cache=yes")
+        .arg("--demuxer-max-bytes=200MiB")
+        .arg("--demuxer-readahead-secs=60")
+        .arg("--network-timeout=120");
     cmd.arg("--").arg(url);
 
     #[cfg(windows)]
@@ -80,24 +88,30 @@ pub fn play(
     Ok(())
 }
 
-/// Bundled mpv, or the one next to the executable in development
+#[cfg(windows)]
+const MPV: &str = "mpv.exe";
+#[cfg(not(windows))]
+const MPV: &str = "mpv";
+
+/// Bundled mpv (Windows), or the one next to the executable in development, else
+/// mpv from the PATH (Linux packages depend on the system's mpv)
 pub fn mpv_path(resource_dir: Option<PathBuf>) -> PathBuf {
     let candidates = [
-        resource_dir.map(|d| d.join("resources").join("mpv").join("mpv.exe")),
+        resource_dir.map(|d| d.join("resources").join("mpv").join(MPV)),
         std::env::current_exe().ok().and_then(|exe| {
             exe.parent()
-                .map(|d| d.join("resources").join("mpv").join("mpv.exe"))
+                .map(|d| d.join("resources").join("mpv").join(MPV))
         }),
         Some(
             PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .join("resources")
                 .join("mpv")
-                .join("mpv.exe"),
+                .join(MPV),
         ),
     ];
     candidates
         .into_iter()
         .flatten()
-        .find(|p| p.exists())
-        .unwrap_or_else(|| PathBuf::from("mpv.exe"))
+        .find(|p| p.is_file())
+        .unwrap_or_else(|| PathBuf::from(MPV))
 }

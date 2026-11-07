@@ -5,3 +5,4 @@
 *.icns binary
 *.png binary
 *.torrent binary
+*.sh text eol=lf

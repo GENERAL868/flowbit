@@ -1,7 +1,7 @@
 //! The few texts the Rust side shows itself: tray menu, notifications, dialog titles.
 //! The window has its own translations in ui/i18n.js.
 
-/// "en" or "ar": the preference, or Windows' display language for "system"
+/// "en" or "ar": the preference, or the system's display language for "system"
 pub fn language(pref: &str) -> &'static str {
     match pref {
         "ar" => "ar",
@@ -19,6 +19,17 @@ fn system_language() -> &'static str {
         }
         // Primary language ID 0x01 is Arabic
         if unsafe { GetUserDefaultUILanguage() } & 0x3ff == 0x01 {
+            return "ar";
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        // The first locale variable that's set, as in POSIX: LC_ALL, LC_MESSAGES, LANG
+        let locale = ["LC_ALL", "LC_MESSAGES", "LANG"]
+            .iter()
+            .filter_map(std::env::var_os)
+            .find(|v| !v.is_empty());
+        if locale.is_some_and(|l| l.to_string_lossy().starts_with("ar")) {
             return "ar";
         }
     }
@@ -124,6 +135,13 @@ pub fn t(lang: &str, key: &str) -> &'static str {
                 "ملفات ترجمة"
             } else {
                 "Subtitles"
+            }
+        }
+        "err.noMpv" => {
+            if ar {
+                "المشغّل mpv غير مثبّت. ثبّته من مدير الحزم، مثلًا: sudo apt install mpv"
+            } else {
+                "The mpv player isn't installed. Install it with your package manager, for example: sudo apt install mpv"
             }
         }
         _ => "",

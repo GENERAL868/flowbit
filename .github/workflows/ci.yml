@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check:
+  windows:
     runs-on: windows-latest
     defaults:
       run:
@@ -49,3 +49,50 @@ jobs:
         run: |
           node --check app.js
           node --check i18n.js
+
+  linux:
+    # The oldest supported Ubuntu, so the packages run on older distributions too
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build dependencies
+        run: ./.github/scripts/linux-deps.sh
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Clippy
+        working-directory: src-tauri
+        run: cargo clippy --all-targets --locked -- -D warnings
+
+      - name: Tests
+        working-directory: src-tauri
+        run: cargo test --locked
+
+      - name: Build the packages
+        run: |
+          npm ci
+          npx tauri build --bundles deb,rpm,appimage
+
+      - name: Start the app
+        run: ./.github/scripts/linux-smoke-test.sh src-tauri/target/release/flowbit
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flowbit-linux
+          path: |
+            src-tauri/target/release/bundle/deb/*.deb
+            src-tauri/target/release/bundle/rpm/*.rpm
+            src-tauri/target/release/bundle/appimage/*.AppImage
+          retention-days: 14

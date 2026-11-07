@@ -124,57 +124,82 @@ impl Library {
     }
 }
 
-/// Follows playback through mpv's JSON IPC pipe until mpv closes, calling
-/// `on_update(position, duration, ended)` every few seconds of progress.
-pub async fn track_playback(pipe: String, mut on_update: impl FnMut(f64, f64, bool) + Send) {
+/// Where mpv listens for its JSON IPC: a named pipe on Windows, a Unix socket
+/// elsewhere. The name has a secret in it, so other programs can't take mpv's place.
+pub fn ipc_address(secret: &str) -> String {
     #[cfg(windows)]
-    {
-        use tokio::net::windows::named_pipe::ClientOptions;
-        let mut client = None;
-        for _ in 0..50 {
-            match ClientOptions::new().open(&pipe) {
-                Ok(c) => {
-                    client = Some(c);
-                    break;
-                }
-                Err(_) => tokio::time::sleep(Duration::from_millis(200)).await,
-            }
-        }
-        let Some(client) = client else { return };
-        let (reader, mut writer) = tokio::io::split(client);
-        for (id, prop) in [(1, "time-pos"), (2, "duration"), (3, "eof-reached")] {
-            let cmd = format!("{{\"command\":[\"observe_property\",{id},\"{prop}\"]}}\n");
-            if writer.write_all(cmd.as_bytes()).await.is_err() {
-                return;
-            }
-        }
-        let mut lines = BufReader::new(reader).lines();
-        let (mut position, mut duration, mut ended) = (0.0f64, 0.0f64, false);
-        let mut saved_at = -100.0f64;
-        while let Ok(Some(line)) = lines.next_line().await {
-            let Ok(msg) = serde_json::from_str::<serde_json::Value>(&line) else {
-                continue;
-            };
-            if msg["event"] != "property-change" {
-                continue;
-            }
-            match msg["name"].as_str() {
-                Some("time-pos") => position = msg["data"].as_f64().unwrap_or(position),
-                Some("duration") => duration = msg["data"].as_f64().unwrap_or(duration),
-                Some("eof-reached") => ended = msg["data"].as_bool().unwrap_or(false),
-                _ => {}
-            }
-            if ended || (position - saved_at).abs() >= 5.0 {
-                saved_at = position;
-                on_update(position, duration, ended);
-            }
-        }
-        on_update(position, duration, ended);
-    }
+    return format!(r"\\.\pipe\flowbit-mpv-{secret}");
     #[cfg(not(windows))]
-    {
-        let _ = (pipe, &mut on_update);
+    return std::env::var_os("XDG_RUNTIME_DIR")
+        .map(PathBuf::from)
+        .filter(|d| d.is_dir())
+        .unwrap_or_else(std::env::temp_dir)
+        .join(format!("flowbit-mpv-{secret}.sock"))
+        .to_string_lossy()
+        .into_owned();
+}
+
+/// Connects to mpv's IPC, waiting up to 10 s for mpv to open it
+#[cfg(windows)]
+async fn connect(address: &str) -> Option<tokio::net::windows::named_pipe::NamedPipeClient> {
+    use tokio::net::windows::named_pipe::ClientOptions;
+    for _ in 0..50 {
+        if let Ok(client) = ClientOptions::new().open(address) {
+            return Some(client);
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
     }
+    None
+}
+
+#[cfg(unix)]
+async fn connect(address: &str) -> Option<tokio::net::UnixStream> {
+    for _ in 0..50 {
+        if let Ok(stream) = tokio::net::UnixStream::connect(address).await {
+            return Some(stream);
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+    None
+}
+
+/// Follows playback through mpv's JSON IPC until mpv closes, calling
+/// `on_update(position, duration, ended)` every few seconds of progress.
+pub async fn track_playback(address: String, mut on_update: impl FnMut(f64, f64, bool) + Send) {
+    let Some(stream) = connect(&address).await else {
+        return;
+    };
+    let (reader, mut writer) = tokio::io::split(stream);
+    for (id, prop) in [(1, "time-pos"), (2, "duration"), (3, "eof-reached")] {
+        let cmd = format!("{{\"command\":[\"observe_property\",{id},\"{prop}\"]}}\n");
+        if writer.write_all(cmd.as_bytes()).await.is_err() {
+            return;
+        }
+    }
+    let mut lines = BufReader::new(reader).lines();
+    let (mut position, mut duration, mut ended) = (0.0f64, 0.0f64, false);
+    let mut saved_at = -100.0f64;
+    while let Ok(Some(line)) = lines.next_line().await {
+        let Ok(msg) = serde_json::from_str::<serde_json::Value>(&line) else {
+            continue;
+        };
+        if msg["event"] != "property-change" {
+            continue;
+        }
+        match msg["name"].as_str() {
+            Some("time-pos") => position = msg["data"].as_f64().unwrap_or(position),
+            Some("duration") => duration = msg["data"].as_f64().unwrap_or(duration),
+            Some("eof-reached") => ended = msg["data"].as_bool().unwrap_or(false),
+            _ => {}
+        }
+        if ended || (position - saved_at).abs() >= 5.0 {
+            saved_at = position;
+            on_update(position, duration, ended);
+        }
+    }
+    on_update(position, duration, ended);
+    #[cfg(unix)]
+    std::fs::remove_file(&address).ok();
 }
 
 /// Applies a playback report: position, and watched once near the end
