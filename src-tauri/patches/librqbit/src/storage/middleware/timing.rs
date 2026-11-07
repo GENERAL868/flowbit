@@ -98,6 +98,11 @@ impl<U: TorrentStorage> TorrentStorage for TimingStorage<U> {
         self.underlying.ensure_file_length(file_id, length)
     }
 
+    // Flowbit patch: pass on_file_completed through
+    fn on_file_completed(&self, file_id: usize) -> anyhow::Result<()> {
+        self.underlying.on_file_completed(file_id)
+    }
+
     fn take(&self) -> anyhow::Result<Box<dyn TorrentStorage>> {
         Ok(Box::new(TimingStorage {
             underlying: self.underlying.take()?,

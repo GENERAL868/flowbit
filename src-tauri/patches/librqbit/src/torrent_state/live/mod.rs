@@ -852,7 +852,14 @@ impl TorrentStateLive {
             .skip_while(|(_, fi)| !fi.piece_range.contains(&id.get()))
             .take_while(|(_, fi)| fi.piece_range.contains(&id.get()))
         {
-            let _remaining = pieces.update_file_have_on_piece_completed(id, idx, file_info);
+            let remaining = pieces.update_file_have_on_piece_completed(id, idx, file_info);
+            // Flowbit patch: actually reopen the finished file read-only (see
+            // OpenedFile::reopen_read_only); the comment above was all there was
+            if remaining == 0 && !file_info.attrs.padding {
+                if let Err(e) = self.files.on_file_completed(idx) {
+                    debug!(idx, "error reopening a finished file read-only: {e:#}");
+                }
+            }
         }
 
         self.streams

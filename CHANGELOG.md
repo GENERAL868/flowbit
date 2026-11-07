@@ -15,6 +15,11 @@ All notable changes to Flowbit. Versions follow [Semantic Versioning](https://se
 - Playing a file that's already downloaded no longer restarts the torrent: it plays from disk.
 - "Resume all" (window and tray) leaves finished torrents stopped.
 
+### Fixed
+
+- Explorer shows thumbnails for finished videos while the torrent is still in the list. Finished
+  files used to stay open for writing, which kept other programs from reading them.
+
 ## [1.3.0] - 2026-11-07
 
 First public release.

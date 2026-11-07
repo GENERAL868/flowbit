@@ -115,6 +115,8 @@ struct OpenedFileLocked {
     fd: Option<File>,
     #[cfg(windows)]
     tried_marking_sparse: bool,
+    /// Flowbit patch: fd was reopened read-only because the file is complete
+    read_only: bool,
 }
 
 impl Deref for OpenedFileLocked {
@@ -144,8 +146,55 @@ impl OpenedFile {
                 fd: Some(f),
                 #[cfg(windows)]
                 tried_marking_sparse: false,
+                read_only: false,
             }),
         }
+    }
+
+    /// Flowbit patch: a complete file no longer needs a handle open for writing. On
+    /// Windows that handle stops other programs from opening the file with read-only
+    /// sharing, so Explorer can't make a thumbnail of a finished video while the
+    /// torrent is listed. Reading (playback, seeding) keeps working.
+    pub fn reopen_read_only(&self) -> anyhow::Result<()> {
+        let mut g = self.file.write();
+        if g.read_only || g.fd.is_none() {
+            return Ok(());
+        }
+        let f = std::fs::OpenOptions::new()
+            .read(true)
+            .open(&g.path)
+            .with_context(|| format!("error reopening {:?} read-only", g.path))?;
+        g.fd = Some(f);
+        g.read_only = true;
+        Ok(())
+    }
+
+    /// Flowbit patch: opens a read-only file for writing again (e.g. a piece failed
+    /// its hash check and is being downloaded again)
+    fn ensure_writable(&self) -> anyhow::Result<()> {
+        if !self.file.read().read_only {
+            return Ok(());
+        }
+        let mut g = self.file.write();
+        if g.read_only && g.fd.is_some() {
+            let f = std::fs::OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(&g.path)
+                .with_context(|| format!("error reopening {:?} for writing", g.path))?;
+            g.fd = Some(f);
+            g.read_only = false;
+        }
+        Ok(())
+    }
+
+    /// The file handle, for writing
+    pub fn lock_for_write(&self) -> anyhow::Result<impl Deref<Target = File>> {
+        self.ensure_writable()?;
+        #[cfg(windows)]
+        return Ok(self.try_mark_sparse()?);
+        #[cfg(not(windows))]
+        return Ok(self.lock_read()?);
     }
 
     pub fn new_dummy() -> Self {

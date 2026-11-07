@@ -286,6 +286,13 @@ impl TorrentStateInitializing {
                                 now.elapsed()
                             );
                         }
+                        // Flowbit patch: files that are already complete are reopened
+                        // read-only, as the comment above says
+                        if chunk_tracker.is_file_finished(fi) {
+                            if let Err(err) = self.files.on_file_completed(idx) {
+                                warn!(?fi.relative_filename, "error reopening read-only: {err:#}");
+                            }
+                        }
                     }
                 }
                 Ok::<_, anyhow::Error>(())
