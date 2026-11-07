@@ -19,8 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-This license covers Flowbit's own code. Third-party parts keep their own
-licenses: src-tauri/patches/librqbit (Apache-2.0), the bundled mpv player
-(GPL-2.0-or-later), and the fonts in ui/fonts (SIL OFL 1.1). See
-THIRD_PARTY_NOTICES.md.
