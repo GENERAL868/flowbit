@@ -147,7 +147,8 @@ happen.
 
 ## Contributing
 
-Bug reports, translations and pull requests are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md).
+Bug reports, translations and pull requests are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md)
+and the [code of conduct](CODE_OF_CONDUCT.md).
 Report security problems privately, as described in [SECURITY.md](SECURITY.md). Changes are listed
 in [CHANGELOG.md](CHANGELOG.md).
 
