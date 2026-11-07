@@ -50,7 +50,12 @@ pub const AI_PROVIDERS: &[AiProvider] = &[
         default_model: "",
         needs_key: false,
     },
-    AiProvider { id: "custom", url: "", default_model: "", needs_key: false },
+    AiProvider {
+        id: "custom",
+        url: "",
+        default_model: "",
+        needs_key: false,
+    },
 ];
 
 pub fn ai_provider(id: &str) -> Option<&'static AiProvider> {
@@ -60,9 +65,18 @@ pub fn ai_provider(id: &str) -> Option<&'static AiProvider> {
 #[derive(Clone, Debug)]
 pub enum Engine {
     Google,
-    DeepL { key: String },
-    Ai { url: String, model: String, key: Option<String>, label: &'static str },
-    LibreTranslate { url: String },
+    DeepL {
+        key: String,
+    },
+    Ai {
+        url: String,
+        model: String,
+        key: Option<String>,
+        label: &'static str,
+    },
+    LibreTranslate {
+        url: String,
+    },
 }
 
 /// What the user chose in the translator, plus their saved key for that service
@@ -79,17 +93,32 @@ impl Engine {
     pub fn from_choice(c: EngineChoice) -> anyhow::Result<Self> {
         Ok(match c.engine {
             "google" => Self::Google,
-            "deepl" => Self::DeepL { key: c.key.context("add your DeepL API Free key first")? },
+            "deepl" => Self::DeepL {
+                key: c.key.context("add your DeepL API Free key first")?,
+            },
             "ai" => {
                 let p = ai_provider(c.ai_provider).context("choose an AI service")?;
-                let url = if p.id == "custom" { c.ai_url.trim().to_owned() } else { p.url.to_owned() };
+                let url = if p.id == "custom" {
+                    c.ai_url.trim().to_owned()
+                } else {
+                    p.url.to_owned()
+                };
                 check_url(&url)?;
-                let model = if c.ai_model.trim().is_empty() { p.default_model } else { c.ai_model.trim() };
+                let model = if c.ai_model.trim().is_empty() {
+                    p.default_model
+                } else {
+                    c.ai_model.trim()
+                };
                 anyhow::ensure!(!model.is_empty(), "choose a model first");
                 if p.needs_key {
                     anyhow::ensure!(c.key.is_some(), "add your API key for this service first");
                 }
-                Self::Ai { url, model: model.to_owned(), key: c.key, label: p.id }
+                Self::Ai {
+                    url,
+                    model: model.to_owned(),
+                    key: c.key,
+                    label: p.id,
+                }
             }
             "libre" => {
                 let url = c.libre_url.trim().trim_end_matches('/').to_owned();
@@ -157,7 +186,11 @@ pub fn is_rtl(lang: &str) -> bool {
 }
 
 fn language_name(code: &str) -> &'static str {
-    LANGUAGES.iter().find(|(c, _)| *c == code).map(|(_, n)| *n).unwrap_or("Arabic")
+    LANGUAGES
+        .iter()
+        .find(|(c, _)| *c == code)
+        .map(|(_, n)| *n)
+        .unwrap_or("Arabic")
 }
 
 /// Options that make AI translations read better
@@ -180,14 +213,27 @@ pub struct Translator {
 
 impl Translator {
     pub fn new(engine: Engine, target: &str, style: Style) -> anyhow::Result<Self> {
-        anyhow::ensure!(LANGUAGES.iter().any(|(c, _)| *c == target), "unsupported language");
+        anyhow::ensure!(
+            LANGUAGES.iter().any(|(c, _)| *c == target),
+            "unsupported language"
+        );
         let local = engine.is_local();
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(if local { 300 } else { 90 }))
             .https_only(!local)
-            .user_agent(concat!("Flowbit/",env!("CARGO_PKG_VERSION"), " (subtitle translator)"))
+            .user_agent(concat!(
+                "Flowbit/",
+                env!("CARGO_PKG_VERSION"),
+                " (subtitle translator)"
+            ))
             .build()?;
-        Ok(Self { engine, target: target.to_owned(), style, client, context: Vec::new() })
+        Ok(Self {
+            engine,
+            target: target.to_owned(),
+            style,
+            client,
+            context: Vec::new(),
+        })
     }
 
     /// Splits texts into request-sized batches, keeping their order
@@ -218,14 +264,20 @@ impl Translator {
             let result = match self.engine.clone() {
                 Engine::Google => self.google(texts).await,
                 Engine::DeepL { key } => self.deepl(&key, texts).await,
-                Engine::Ai { url, model, key, label } => self.ai(&url, &model, key.as_deref(), label, texts).await,
+                Engine::Ai {
+                    url,
+                    model,
+                    key,
+                    label,
+                } => self.ai(&url, &model, key.as_deref(), label, texts).await,
                 Engine::LibreTranslate { url } => self.libre(&url, texts).await,
             };
             tries += 1;
             match result {
                 Ok(out) => {
                     // Keep the last few lines as context for the next batch
-                    self.context.extend(texts.iter().cloned().zip(out.iter().cloned()));
+                    self.context
+                        .extend(texts.iter().cloned().zip(out.iter().cloned()));
                     let excess = self.context.len().saturating_sub(6);
                     self.context.drain(..excess);
                     return Ok(out);
@@ -259,13 +311,23 @@ impl Translator {
         let resp = self
             .client
             .post(url)
-            .header("Content-Type", "application/x-www-form-urlencoded;charset=utf-8")
+            .header(
+                "Content-Type",
+                "application/x-www-form-urlencoded;charset=utf-8",
+            )
             .body(format!("q={}", form_encode(text)))
             .send()
             .await?;
-        anyhow::ensure!(resp.status().is_success(), "Google Translate: HTTP {}", resp.status());
+        anyhow::ensure!(
+            resp.status().is_success(),
+            "Google Translate: HTTP {}",
+            resp.status()
+        );
         let v: Value = serde_json::from_slice(&resp.bytes().await?)?;
-        let segments = v.get(0).and_then(|s| s.as_array()).context("Google Translate: unexpected reply")?;
+        let segments = v
+            .get(0)
+            .and_then(|s| s.as_array())
+            .context("Google Translate: unexpected reply")?;
         Ok(segments
             .iter()
             .filter_map(|s| s.get(0).and_then(|t| t.as_str()))
@@ -274,7 +336,11 @@ impl Translator {
 
     /// DeepL API: free keys end with ":fx" and use api-free.deepl.com
     async fn deepl(&self, key: &str, texts: &[String]) -> anyhow::Result<Vec<String>> {
-        let host = if key.ends_with(":fx") { "api-free.deepl.com" } else { "api.deepl.com" };
+        let host = if key.ends_with(":fx") {
+            "api-free.deepl.com"
+        } else {
+            "api.deepl.com"
+        };
         let target = match self.target.as_str() {
             "en" => "EN-US".to_owned(),
             "pt" => "PT-BR".to_owned(),
@@ -339,7 +405,14 @@ impl Translator {
         prompt
     }
 
-    async fn ai(&self, url: &str, model: &str, key: Option<&str>, label: &str, texts: &[String]) -> anyhow::Result<Vec<String>> {
+    async fn ai(
+        &self,
+        url: &str,
+        model: &str,
+        key: Option<&str>,
+        label: &str,
+        texts: &[String],
+    ) -> anyhow::Result<Vec<String>> {
         let numbered: String = texts
             .iter()
             .enumerate()
@@ -358,15 +431,17 @@ impl Translator {
             }));
         }
         messages.push(json!({ "role": "user", "content": numbered }));
-        let mut req = self
-            .client
-            .post(url)
-            .json_body(&json!({ "model": model, "temperature": 0.2, "messages": messages, "stream": false }))?;
+        let mut req = self.client.post(url).json_body(
+            &json!({ "model": model, "temperature": 0.2, "messages": messages, "stream": false }),
+        )?;
         if let Some(key) = key {
             req = req.bearer_auth(key);
         }
         let name = ai_name(label);
-        let resp = req.send().await.with_context(|| format!("{name}: couldn't connect"))?;
+        let resp = req
+            .send()
+            .await
+            .with_context(|| format!("{name}: couldn't connect"))?;
         match resp.status().as_u16() {
             200 => {}
             401 | 403 => bail!("{name}: the API key isn't valid"),
@@ -375,10 +450,14 @@ impl Translator {
             s => bail!("{name}: HTTP {s}"),
         }
         let v: Value = serde_json::from_slice(&resp.bytes().await?)?;
-        let content = v["choices"][0]["message"]["content"].as_str().unwrap_or_default();
+        let content = v["choices"][0]["message"]["content"]
+            .as_str()
+            .unwrap_or_default();
         let mut out = vec![None; texts.len()];
         for line in content.lines() {
-            let Some((n, text)) = line.trim().split_once('|') else { continue };
+            let Some((n, text)) = line.trim().split_once('|') else {
+                continue;
+            };
             if let Ok(n) = n.trim().trim_start_matches('#').parse::<usize>() {
                 if (1..=texts.len()).contains(&n) && out[n - 1].is_none() {
                     out[n - 1] = Some(text.trim().to_owned());
@@ -390,9 +469,11 @@ impl Translator {
         for (i, t) in out.into_iter().enumerate() {
             match t {
                 Some(t) if !t.is_empty() => result.push(t),
-                _ if texts.len() > 1 => {
-                    result.push(Box::pin(self.ai(url, model, key, label, &texts[i..=i])).await?.remove(0))
-                }
+                _ if texts.len() > 1 => result.push(
+                    Box::pin(self.ai(url, model, key, label, &texts[i..=i]))
+                        .await?
+                        .remove(0),
+                ),
                 _ => result.push(texts[i].clone()),
             }
         }
@@ -408,11 +489,17 @@ impl Translator {
         let resp = self
             .client
             .post(format!("{url}/translate"))
-            .json_body(&json!({ "q": texts, "source": "auto", "target": target, "format": "text" }))?
+            .json_body(
+                &json!({ "q": texts, "source": "auto", "target": target, "format": "text" }),
+            )?
             .send()
             .await
             .context("LibreTranslate isn't running at this address")?;
-        anyhow::ensure!(resp.status().is_success(), "LibreTranslate: HTTP {}", resp.status());
+        anyhow::ensure!(
+            resp.status().is_success(),
+            "LibreTranslate: HTTP {}",
+            resp.status()
+        );
         let v: Value = serde_json::from_slice(&resp.bytes().await?)?;
         let out: Vec<String> = v["translatedText"]
             .as_array()
@@ -420,7 +507,10 @@ impl Translator {
             .iter()
             .map(|t| t.as_str().unwrap_or_default().to_owned())
             .collect();
-        anyhow::ensure!(out.len() == texts.len(), "LibreTranslate: missing translations");
+        anyhow::ensure!(
+            out.len() == texts.len(),
+            "LibreTranslate: missing translations"
+        );
         Ok(out)
     }
 }
@@ -438,7 +528,9 @@ fn ai_name(id: &str) -> &'static str {
 
 /// Models installed in Ollama, if it's running
 pub async fn ollama_models() -> anyhow::Result<Vec<String>> {
-    let client = reqwest::Client::builder().timeout(Duration::from_secs(3)).build()?;
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(3))
+        .build()?;
     let resp = client
         .get("http://127.0.0.1:11434/api/tags")
         .send()
@@ -447,7 +539,11 @@ pub async fn ollama_models() -> anyhow::Result<Vec<String>> {
     let v: Value = serde_json::from_slice(&resp.bytes().await?)?;
     Ok(v["models"]
         .as_array()
-        .map(|m| m.iter().filter_map(|x| x["name"].as_str().map(str::to_owned)).collect())
+        .map(|m| {
+            m.iter()
+                .filter_map(|x| x["name"].as_str().map(str::to_owned))
+                .collect()
+        })
         .unwrap_or_default())
 }
 
@@ -457,7 +553,9 @@ trait JsonBody {
 
 impl JsonBody for reqwest::RequestBuilder {
     fn json_body(self, v: &Value) -> anyhow::Result<reqwest::RequestBuilder> {
-        Ok(self.header("Content-Type", "application/json").body(serde_json::to_vec(v)?))
+        Ok(self
+            .header("Content-Type", "application/json")
+            .body(serde_json::to_vec(v)?))
     }
 }
 
@@ -465,7 +563,9 @@ fn form_encode(s: &str) -> String {
     let mut out = String::with_capacity(s.len() * 3);
     for b in s.bytes() {
         match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => out.push(b as char),
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(b as char)
+            }
             b' ' => out.push('+'),
             _ => out.push_str(&format!("%{b:02X}")),
         }

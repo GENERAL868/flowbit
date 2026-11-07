@@ -9,7 +9,10 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 
-use crate::{engine::FileView, err, i18n, library, player, posters, subtitles, translate, AppState, CmdResult};
+use crate::{
+    engine::FileView, err, i18n, library, player, posters, subtitles, translate, AppState,
+    CmdResult,
+};
 
 // ---------------------------------------------------------------------------
 // Watch library
@@ -40,17 +43,26 @@ pub async fn library_items(state: State<'_, AppState>) -> CmdResult<Vec<LibraryI
     let watched = state.library.all();
     let mut items = Vec::new();
     for t in engine.list() {
-        let Ok(files) = engine.files(t.id) else { continue };
+        let Ok(files) = engine.files(t.id) else {
+            continue;
+        };
         let subtitle_files: Vec<&FileView> = files
             .iter()
             .filter(|f| !f.padding && subtitles::Format::from_path(Path::new(&f.name)).is_some())
             .collect();
-        for f in files.iter().filter(|f| !f.padding && player::is_media(&f.name)) {
-            let stem = Path::new(&f.name).file_stem().map(|s| s.to_string_lossy().to_lowercase());
+        for f in files
+            .iter()
+            .filter(|f| !f.padding && player::is_media(&f.name))
+        {
+            let stem = Path::new(&f.name)
+                .file_stem()
+                .map(|s| s.to_string_lossy().to_lowercase());
             let subs = subtitle_files
                 .iter()
                 .filter(|s| {
-                    let s_stem = Path::new(&s.name).file_stem().map(|x| x.to_string_lossy().to_lowercase());
+                    let s_stem = Path::new(&s.name)
+                        .file_stem()
+                        .map(|x| x.to_string_lossy().to_lowercase());
                     match (&stem, s_stem) {
                         (Some(v), Some(s)) => s.starts_with(v.as_str()),
                         _ => false,
@@ -68,7 +80,10 @@ pub async fn library_items(state: State<'_, AppState>) -> CmdResult<Vec<LibraryI
                 downloaded: f.progress,
                 is_video: player::is_video(&f.name),
                 torrent_state: t.state,
-                watch: watched.get(&library::key(&t.info_hash, f.index)).cloned().unwrap_or_default(),
+                watch: watched
+                    .get(&library::key(&t.info_hash, f.index))
+                    .cloned()
+                    .unwrap_or_default(),
                 subtitles: subs,
             });
         }
@@ -101,7 +116,9 @@ pub async fn poster_worker(app: AppHandle) {
     loop {
         tokio::time::sleep(std::time::Duration::from_secs(8)).await;
         let state = app.state::<AppState>();
-        let Ok(engine) = state.engine().await else { return };
+        let Ok(engine) = state.engine().await else {
+            return;
+        };
         for t in engine.list() {
             if !t.has_metadata || tried.contains(&t.info_hash) {
                 continue;
@@ -111,13 +128,23 @@ pub async fn poster_worker(app: AppHandle) {
                 tried.insert(t.info_hash.clone());
                 continue;
             }
-            let Ok(files) = engine.files(t.id) else { continue };
+            let Ok(files) = engine.files(t.id) else {
+                continue;
+            };
             // The video that's furthest along (then the largest); else audio, for cover art
-            let share = |f: &&FileView| if f.length == 0 { 0 } else { f.progress * 1000 / f.length };
+            let share = |f: &&FileView| (f.progress * 1000).checked_div(f.length).unwrap_or(0);
             let pick = |video: bool| {
                 files
                     .iter()
-                    .filter(|f| !f.padding && f.included && if video { player::is_video(&f.name) } else { player::is_media(&f.name) })
+                    .filter(|f| {
+                        !f.padding
+                            && f.included
+                            && if video {
+                                player::is_video(&f.name)
+                            } else {
+                                player::is_media(&f.name)
+                            }
+                    })
                     .max_by_key(|f| (share(f), f.length))
             };
             let Some(main) = pick(true).or_else(|| pick(false)) else {
@@ -156,7 +183,10 @@ fn subtitle_info(path: &Path) -> anyhow::Result<SubtitleInfo> {
     let doc = subtitles::read(path)?;
     Ok(SubtitleInfo {
         path: path.to_string_lossy().into_owned(),
-        name: path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(),
+        name: path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default(),
         format: doc.format.name(),
         cues: doc.cues.len(),
         preview: doc.preview(6),
@@ -164,13 +194,19 @@ fn subtitle_info(path: &Path) -> anyhow::Result<SubtitleInfo> {
 }
 
 #[tauri::command]
-pub fn pick_subtitle(app: AppHandle, state: State<'_, AppState>) -> CmdResult<Option<SubtitleInfo>> {
+pub fn pick_subtitle(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> CmdResult<Option<SubtitleInfo>> {
     let lang = i18n::language(&state.prefs().language);
     let picked = app
         .dialog()
         .file()
         .set_title(i18n::t(lang, "dialog.openSubtitle"))
-        .add_filter(i18n::t(lang, "filter.subtitles"), &["srt", "ass", "ssa", "vtt"])
+        .add_filter(
+            i18n::t(lang, "filter.subtitles"),
+            &["srt", "ass", "ssa", "vtt"],
+        )
         .blocking_pick_file();
     let Some(path) = picked.and_then(|p| p.into_path().ok()) else {
         return Ok(None);
@@ -180,7 +216,11 @@ pub fn pick_subtitle(app: AppHandle, state: State<'_, AppState>) -> CmdResult<Op
 
 /// A subtitle file dropped on the window, or from a torrent
 #[tauri::command]
-pub async fn open_subtitle(state: State<'_, AppState>, path: Option<String>, torrent: Option<(usize, usize)>) -> CmdResult<SubtitleInfo> {
+pub async fn open_subtitle(
+    state: State<'_, AppState>,
+    path: Option<String>,
+    torrent: Option<(usize, usize)>,
+) -> CmdResult<SubtitleInfo> {
     let path = match (path, torrent) {
         (Some(p), _) => PathBuf::from(p),
         (None, Some((id, file))) => {
@@ -212,7 +252,11 @@ struct Progress {
 /// Translates a subtitle file and saves it with the same timings and formatting.
 /// Sends "subtitle-progress" events; returns the saved file's path.
 #[tauri::command]
-pub async fn translate_subtitle(app: AppHandle, state: State<'_, AppState>, request: TranslateRequest) -> CmdResult<Option<String>> {
+pub async fn translate_subtitle(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    request: TranslateRequest,
+) -> CmdResult<Option<String>> {
     let source = PathBuf::from(&request.path);
     let doc = subtitles::read(&source).map_err(err)?;
     if doc.cues.is_empty() {
@@ -237,24 +281,37 @@ pub async fn translate_subtitle(app: AppHandle, state: State<'_, AppState>, requ
         key: state.keys.get(key_service),
     })
     .map_err(err)?;
-    let style = translate::Style { arabic_dialect: p.sub_arabic_style.clone(), glossary: p.sub_glossary.clone() };
+    let style = translate::Style {
+        arabic_dialect: p.sub_arabic_style.clone(),
+        glossary: p.sub_glossary.clone(),
+    };
     let mut translator = translate::Translator::new(engine, &p.sub_target, style).map_err(err)?;
     let target = p.sub_target.clone();
 
     // Every unit of every cue, in order; empty ones skip the translator
-    let units: Vec<String> = doc.cues.iter().flat_map(|c| c.units.iter().cloned()).collect();
+    let units: Vec<String> = doc
+        .cues
+        .iter()
+        .flat_map(|c| c.units.iter().cloned())
+        .collect();
     let mut translated: Vec<String> = vec![String::new(); units.len()];
-    let todo: Vec<usize> = (0..units.len()).filter(|&i| !units[i].trim().is_empty()).collect();
+    let todo: Vec<usize> = (0..units.len())
+        .filter(|&i| !units[i].trim().is_empty())
+        .collect();
     let texts: Vec<String> = todo.iter().map(|&i| units[i].clone()).collect();
 
     state.translate_cancel.store(false, Ordering::SeqCst);
     let total = texts.len();
-    app.emit("subtitle-progress", Progress { done: 0, total }).ok();
+    app.emit("subtitle-progress", Progress { done: 0, total })
+        .ok();
     for range in translator.batches(&texts) {
         if state.translate_cancel.load(Ordering::SeqCst) {
             return Err("cancelled".into());
         }
-        let out = translator.translate(&texts[range.clone()]).await.map_err(|e| format!("{e:#}"))?;
+        let out = translator
+            .translate(&texts[range.clone()])
+            .await
+            .map_err(|e| format!("{e:#}"))?;
         for (k, text) in range.clone().zip(out) {
             // Translations are plain text: braces and angle brackets would read as
             // ASS override tags or HTML formatting in the output file
@@ -268,7 +325,14 @@ pub async fn translate_subtitle(app: AppHandle, state: State<'_, AppState>, requ
                 })
                 .collect();
         }
-        app.emit("subtitle-progress", Progress { done: range.end, total }).ok();
+        app.emit(
+            "subtitle-progress",
+            Progress {
+                done: range.end,
+                total,
+            },
+        )
+        .ok();
     }
 
     // Back into cues
@@ -287,8 +351,16 @@ pub async fn translate_subtitle(app: AppHandle, state: State<'_, AppState>, requ
             .dialog()
             .file()
             .set_title(i18n::t(lang, "dialog.saveSubtitle"))
-            .set_file_name(suggested.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default())
-            .add_filter(i18n::t(lang, "filter.subtitles"), &["srt", "ass", "ssa", "vtt"])
+            .set_file_name(
+                suggested
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_default(),
+            )
+            .add_filter(
+                i18n::t(lang, "filter.subtitles"),
+                &["srt", "ass", "ssa", "vtt"],
+            )
             .blocking_save_file();
         match picked.and_then(|p| p.into_path().ok()) {
             Some(p) => p,
@@ -303,7 +375,11 @@ pub async fn translate_subtitle(app: AppHandle, state: State<'_, AppState>, requ
 
 /// Saves an API key (encrypted), or removes it when empty. Returns the services with keys.
 #[tauri::command]
-pub fn set_api_key(state: State<'_, AppState>, service: String, key: String) -> CmdResult<Vec<String>> {
+pub fn set_api_key(
+    state: State<'_, AppState>,
+    service: String,
+    key: String,
+) -> CmdResult<Vec<String>> {
     state.keys.set(&service, &key).map_err(err)?;
     Ok(state.keys.saved())
 }
@@ -354,7 +430,9 @@ pub fn cancel_translation(state: State<'_, AppState>) {
 
 #[tauri::command]
 pub async fn ollama_models() -> CmdResult<Vec<String>> {
-    translate::ollama_models().await.map_err(|e| format!("{e:#}"))
+    translate::ollama_models()
+        .await
+        .map_err(|e| format!("{e:#}"))
 }
 
 #[derive(Serialize)]
@@ -372,7 +450,9 @@ pub async fn torrent_subtitles(state: State<'_, AppState>) -> CmdResult<Vec<Torr
     let engine = state.engine().await?;
     let mut out = Vec::new();
     for t in engine.list() {
-        let Ok(files) = engine.files(t.id) else { continue };
+        let Ok(files) = engine.files(t.id) else {
+            continue;
+        };
         for f in files {
             if !f.padding && subtitles::Format::from_path(Path::new(&f.name)).is_some() {
                 out.push(TorrentSubtitle {

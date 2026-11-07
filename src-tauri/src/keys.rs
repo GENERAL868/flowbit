@@ -3,7 +3,10 @@
 //! them. The window can save or remove a key, and see whether one is saved, but never
 //! reads a key back.
 
-use std::{collections::HashMap, path::{Path, PathBuf}};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
 /// Services that can have a key
 pub const SERVICES: &[&str] = &["deepl", "gemini", "groq", "openrouter", "openai", "custom"];
@@ -14,7 +17,9 @@ pub struct KeyStore {
 
 impl KeyStore {
     pub fn new(data_dir: &Path) -> Self {
-        Self { path: data_dir.join("keys.json") }
+        Self {
+            path: data_dir.join("keys.json"),
+        }
     }
 
     fn load(&self) -> HashMap<String, String> {
@@ -33,7 +38,10 @@ impl KeyStore {
     pub fn set(&self, service: &str, key: &str) -> anyhow::Result<()> {
         anyhow::ensure!(SERVICES.contains(&service), "unknown service");
         let key = key.trim();
-        anyhow::ensure!(key.len() <= 512 && !key.contains(char::is_whitespace), "that doesn't look like an API key");
+        anyhow::ensure!(
+            key.len() <= 512 && !key.contains(char::is_whitespace),
+            "that doesn't look like an API key"
+        );
         let mut all = self.load();
         if key.is_empty() {
             all.remove(service);
@@ -49,7 +57,11 @@ impl KeyStore {
     /// Which services have a key saved
     pub fn saved(&self) -> Vec<String> {
         let all = self.load();
-        SERVICES.iter().filter(|s| all.contains_key(**s)).map(|s| s.to_string()).collect()
+        SERVICES
+            .iter()
+            .filter(|s| all.contains_key(**s))
+            .map(|s| s.to_string())
+            .collect()
     }
 }
 
@@ -107,10 +119,24 @@ mod dpapi {
 #[cfg(windows)]
 fn protect(data: &[u8]) -> anyhow::Result<Vec<u8>> {
     use dpapi::*;
-    let input = Blob { len: data.len() as u32, data: data.as_ptr() as *mut u8 };
-    let mut output = Blob { len: 0, data: std::ptr::null_mut() };
+    let input = Blob {
+        len: data.len() as u32,
+        data: data.as_ptr() as *mut u8,
+    };
+    let mut output = Blob {
+        len: 0,
+        data: std::ptr::null_mut(),
+    };
     let ok = unsafe {
-        CryptProtectData(&input, std::ptr::null(), std::ptr::null(), std::ptr::null_mut(), std::ptr::null_mut(), UI_FORBIDDEN, &mut output)
+        CryptProtectData(
+            &input,
+            std::ptr::null(),
+            std::ptr::null(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            UI_FORBIDDEN,
+            &mut output,
+        )
     };
     anyhow::ensure!(ok != 0, "couldn't encrypt the key");
     let out = unsafe { std::slice::from_raw_parts(output.data, output.len as usize).to_vec() };
@@ -121,10 +147,24 @@ fn protect(data: &[u8]) -> anyhow::Result<Vec<u8>> {
 #[cfg(windows)]
 fn unprotect(data: &[u8]) -> Option<Vec<u8>> {
     use dpapi::*;
-    let input = Blob { len: data.len() as u32, data: data.as_ptr() as *mut u8 };
-    let mut output = Blob { len: 0, data: std::ptr::null_mut() };
+    let input = Blob {
+        len: data.len() as u32,
+        data: data.as_ptr() as *mut u8,
+    };
+    let mut output = Blob {
+        len: 0,
+        data: std::ptr::null_mut(),
+    };
     let ok = unsafe {
-        CryptUnprotectData(&input, std::ptr::null_mut(), std::ptr::null(), std::ptr::null_mut(), std::ptr::null_mut(), UI_FORBIDDEN, &mut output)
+        CryptUnprotectData(
+            &input,
+            std::ptr::null_mut(),
+            std::ptr::null(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            UI_FORBIDDEN,
+            &mut output,
+        )
     };
     if ok == 0 {
         return None;
@@ -155,7 +195,9 @@ mod tests {
         let store = KeyStore::new(&dir);
         store.set("deepl", "abc123:fx").unwrap();
         assert_eq!(store.get("deepl").as_deref(), Some("abc123:fx"));
-        assert!(!std::fs::read_to_string(dir.join("keys.json")).unwrap().contains("abc123"));
+        assert!(!std::fs::read_to_string(dir.join("keys.json"))
+            .unwrap()
+            .contains("abc123"));
         assert_eq!(store.saved(), vec!["deepl".to_string()]);
         store.set("deepl", "").unwrap();
         assert_eq!(store.get("deepl"), None);

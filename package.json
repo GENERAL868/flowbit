@@ -4,6 +4,7 @@
   "private": true,
   "description": "Streaming torrent client for Windows: Rust (librqbit, Tauri) and mpv",
   "license": "MIT",
+  "repository": "github:GENERAL868/flowbit",
   "scripts": {
     "dev": "tauri dev",
     "build": "tauri build",

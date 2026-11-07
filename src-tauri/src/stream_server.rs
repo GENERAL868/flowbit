@@ -50,7 +50,9 @@ impl StreamServer {
 pub fn spawn(listener: TcpListener, server: Arc<StreamServer>, engine: std::sync::Weak<Engine>) {
     tokio::spawn(async move {
         loop {
-            let Ok((socket, _)) = listener.accept().await else { continue };
+            let Ok((socket, _)) = listener.accept().await else {
+                continue;
+            };
             let server = server.clone();
             let engine = engine.clone();
             tokio::spawn(async move {
@@ -60,7 +62,11 @@ pub fn spawn(listener: TcpListener, server: Arc<StreamServer>, engine: std::sync
     });
 }
 
-async fn handle(mut socket: TcpStream, server: &StreamServer, engine: std::sync::Weak<Engine>) -> anyhow::Result<()> {
+async fn handle(
+    mut socket: TcpStream,
+    server: &StreamServer,
+    engine: std::sync::Weak<Engine>,
+) -> anyhow::Result<()> {
     let request = match tokio::time::timeout(REQUEST_TIMEOUT, read_request(&mut socket)).await {
         Ok(Ok(r)) => r,
         _ => return respond(&mut socket, 400, "Bad Request", &[]).await,
@@ -76,12 +82,22 @@ async fn handle(mut socket: TcpStream, server: &StreamServer, engine: std::sync:
     let head = match request.method.as_str() {
         "GET" => false,
         "HEAD" => true,
-        _ => return respond(&mut socket, 405, "Method Not Allowed", &[("Allow", "GET, HEAD".into())]).await,
+        _ => {
+            return respond(
+                &mut socket,
+                405,
+                "Method Not Allowed",
+                &[("Allow", "GET, HEAD".into())],
+            )
+            .await
+        }
     };
 
     // /stream/<secret>/<torrent id>/<file index>[/<name>]
     let mut parts = request.path.trim_start_matches('/').split('/');
-    let (Some("stream"), Some(secret), Some(id), Some(file)) = (parts.next(), parts.next(), parts.next(), parts.next()) else {
+    let (Some("stream"), Some(secret), Some(id), Some(file)) =
+        (parts.next(), parts.next(), parts.next(), parts.next())
+    else {
         return respond(&mut socket, 404, "Not Found", &[]).await;
     };
     if !constant_time_eq(secret.as_bytes(), server.secret.as_bytes()) {
@@ -112,7 +128,13 @@ async fn handle(mut socket: TcpStream, server: &StreamServer, engine: std::sync:
         None => (200, 0, len),
         Some(Some((start, end))) => (206, start, end),
         Some(None) => {
-            return respond(&mut socket, 416, "Range Not Satisfiable", &[("Content-Range", format!("bytes */{len}"))]).await;
+            return respond(
+                &mut socket,
+                416,
+                "Range Not Satisfiable",
+                &[("Content-Range", format!("bytes */{len}"))],
+            )
+            .await;
         }
     };
 
@@ -122,9 +144,16 @@ async fn handle(mut socket: TcpStream, server: &StreamServer, engine: std::sync:
         ("Accept-Ranges", "bytes".to_owned()),
     ];
     if status == 206 {
-        headers.push(("Content-Range", format!("bytes {}-{}/{}", start, end.saturating_sub(1), len)));
+        headers.push((
+            "Content-Range",
+            format!("bytes {}-{}/{}", start, end.saturating_sub(1), len),
+        ));
     }
-    let reason = if status == 206 { "Partial Content" } else { "OK" };
+    let reason = if status == 206 {
+        "Partial Content"
+    } else {
+        "OK"
+    };
     write_head(&mut socket, status, reason, &headers).await?;
     if head || start == end {
         return Ok(());
@@ -170,7 +199,11 @@ async fn read_request(socket: &mut TcpStream) -> anyhow::Result<Request> {
         .filter_map(|l| l.split_once(':'))
         .map(|(k, v)| (k.trim().to_owned(), v.trim().to_owned()))
         .collect();
-    Ok(Request { method, path, headers })
+    Ok(Request {
+        method,
+        path,
+        headers,
+    })
 }
 
 /// "bytes=a-b", "bytes=a-" or "bytes=-n" as [start, end)
@@ -185,14 +218,25 @@ fn parse_range(header: &str, len: u64) -> Option<(u64, u64)> {
         (len.saturating_sub(suffix), len)
     } else {
         let start: u64 = start.parse().ok()?;
-        let end = if end.is_empty() { len } else { end.parse::<u64>().ok()?.saturating_add(1).min(len) };
+        let end = if end.is_empty() {
+            len
+        } else {
+            end.parse::<u64>().ok()?.saturating_add(1).min(len)
+        };
         (start, end)
     };
     (start < end && start < len).then_some((start, end))
 }
 
-async fn write_head(socket: &mut TcpStream, status: u16, reason: &str, headers: &[(&str, String)]) -> anyhow::Result<()> {
-    let mut head = format!("HTTP/1.1 {status} {reason}\r\nConnection: close\r\nX-Content-Type-Options: nosniff\r\n");
+async fn write_head(
+    socket: &mut TcpStream,
+    status: u16,
+    reason: &str,
+    headers: &[(&str, String)],
+) -> anyhow::Result<()> {
+    let mut head = format!(
+        "HTTP/1.1 {status} {reason}\r\nConnection: close\r\nX-Content-Type-Options: nosniff\r\n"
+    );
     for (k, v) in headers {
         head.push_str(&format!("{k}: {v}\r\n"));
     }
@@ -201,7 +245,12 @@ async fn write_head(socket: &mut TcpStream, status: u16, reason: &str, headers: 
     Ok(())
 }
 
-async fn respond(socket: &mut TcpStream, status: u16, reason: &str, headers: &[(&str, String)]) -> anyhow::Result<()> {
+async fn respond(
+    socket: &mut TcpStream,
+    status: u16,
+    reason: &str,
+    headers: &[(&str, String)],
+) -> anyhow::Result<()> {
     let mut all = headers.to_vec();
     all.push(("Content-Length", "0".to_owned()));
     write_head(socket, status, reason, &all).await?;
@@ -239,7 +288,9 @@ fn urlencode(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for b in s.bytes() {
         match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => out.push(b as char),
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(b as char)
+            }
             _ => out.push_str(&format!("%{b:02X}")),
         }
     }
@@ -253,11 +304,21 @@ pub fn random_secret() -> String {
     {
         #[link(name = "bcrypt")]
         extern "system" {
-            fn BCryptGenRandom(alg: *mut std::ffi::c_void, buf: *mut u8, len: u32, flags: u32) -> i32;
+            fn BCryptGenRandom(
+                alg: *mut std::ffi::c_void,
+                buf: *mut u8,
+                len: u32,
+                flags: u32,
+            ) -> i32;
         }
         const BCRYPT_USE_SYSTEM_PREFERRED_RNG: u32 = 2;
         let status = unsafe {
-            BCryptGenRandom(std::ptr::null_mut(), bytes.as_mut_ptr(), bytes.len() as u32, BCRYPT_USE_SYSTEM_PREFERRED_RNG)
+            BCryptGenRandom(
+                std::ptr::null_mut(),
+                bytes.as_mut_ptr(),
+                bytes.len() as u32,
+                BCRYPT_USE_SYSTEM_PREFERRED_RNG,
+            )
         };
         assert!(status == 0, "BCryptGenRandom failed");
     }

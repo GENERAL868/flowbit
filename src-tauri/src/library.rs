@@ -42,7 +42,10 @@ pub fn key(info_hash: &str, file: usize) -> String {
 }
 
 pub fn now() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
 }
 
 impl Library {
@@ -52,7 +55,10 @@ impl Library {
             .ok()
             .and_then(|b| serde_json::from_slice(&b).ok())
             .unwrap_or_default();
-        Self { path, data: Mutex::new(data) }
+        Self {
+            path,
+            data: Mutex::new(data),
+        }
     }
 
     pub fn all(&self) -> HashMap<String, WatchState> {
@@ -80,7 +86,8 @@ impl Library {
     pub fn retain(&self, info_hashes: &HashSet<String>) {
         let mut data = self.data.lock().unwrap();
         let before = data.items.len() + data.shared.len();
-        data.items.retain(|k, _| k.split(':').next().is_some_and(|h| info_hashes.contains(h)));
+        data.items
+            .retain(|k, _| k.split(':').next().is_some_and(|h| info_hashes.contains(h)));
         data.shared.retain(|h| info_hashes.contains(h));
         if data.items.len() + data.shared.len() != before {
             self.save(&data);
@@ -125,7 +132,9 @@ pub async fn track_playback(pipe: String, mut on_update: impl FnMut(f64, f64, bo
         let (mut position, mut duration, mut ended) = (0.0f64, 0.0f64, false);
         let mut saved_at = -100.0f64;
         while let Ok(Some(line)) = lines.next_line().await {
-            let Ok(msg) = serde_json::from_str::<serde_json::Value>(&line) else { continue };
+            let Ok(msg) = serde_json::from_str::<serde_json::Value>(&line) else {
+                continue;
+            };
             if msg["event"] != "property-change" {
                 continue;
             }

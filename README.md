@@ -1,7 +1,36 @@
-# Flowbit
+<p align="center">
+  <img src="assets/icon.png" width="96" height="96" alt="">
+</p>
 
-A streaming torrent client for Windows. Start watching while a torrent downloads, keep track of
-what you've watched, and translate subtitles, in English or Arabic.
+<h1 align="center">Flowbit</h1>
+
+<p align="center">
+  A streaming torrent client for Windows. Start watching while it downloads, keep track of what
+  you've watched, and translate subtitles, in English or Arabic.
+</p>
+
+<p align="center">
+  <a href="https://github.com/GENERAL868/flowbit/releases/latest"><img src="https://img.shields.io/github/v/release/GENERAL868/flowbit?label=download" alt="Latest release"></a>
+  <a href="https://github.com/GENERAL868/flowbit/actions/workflows/ci.yml"><img src="https://github.com/GENERAL868/flowbit/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <img src="https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-blue" alt="Windows 10 and 11">
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/GENERAL868/flowbit" alt="MIT license"></a>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/home-en.png" width="860" alt="Flowbit's torrent list, with a download in progress">
+</p>
+
+## Download
+
+Get the latest version from [Releases](https://github.com/GENERAL868/flowbit/releases/latest):
+
+- **`Flowbit-x.y.z-setup.exe`**: installs for your account only, no admin rights needed
+- **`Flowbit-x.y.z-portable.zip`**: unzip anywhere and run `Flowbit.exe`; settings stay in the
+  folder
+
+Needs Windows 10 or 11 (64-bit) with Microsoft Edge WebView2, which Windows already has.
+
+## Built with
 
 - **Torrent engine:** [librqbit](https://github.com/ikatson/rqbit) 9.0.1, in Rust
 - **Window:** [Tauri](https://tauri.app) 2, using Windows' built-in WebView2
@@ -19,6 +48,26 @@ what you've watched, and translate subtitles, in English or Arabic.
 - Drag and drop `.torrent` files, magnet links and folders to share; create torrents
 - Runs in the tray with only the engine (about 60 MB) when the window is closed
 - Opens magnet links and `.torrent` files (current user, no admin rights)
+
+| Watch library | Subtitle translator |
+|---|---|
+| <img src="docs/screenshots/library-en.png" alt="Watch library with continue watching and episodes"> | <img src="docs/screenshots/translator-en.png" alt="Subtitle translator with four engines"> |
+
+<details dir="rtl">
+<summary><b>بالعربي</b></summary>
+
+**Flowbit** برنامج تورنت لويندوز، تشاهد فيه الحلقة وهي تنزل.
+
+- **مكتبة مشاهدة:** تكمل من حيث وقفت، والحلقات مرتبة حسب المسلسل، وتعلّم على اللي شفته.
+- **مترجم ترجمات:** يترجم ملفات SRT و ASS و WebVTT للعربي ويحافظ على التوقيت والتنسيق. يشتغل مع Google و DeepL ونماذج الذكاء الاصطناعي المجانية (Gemini و Groq وغيرها)، وتختار أسلوب العربي: فصحى أو خليجي أو مصري أو شامي.
+- **واجهة عربية كاملة** من اليمين لليسار.
+- **مجاني ومفتوح المصدر.**
+
+نزّله من صفحة [الإصدارات](https://github.com/GENERAL868/flowbit/releases/latest).
+
+<img src="docs/screenshots/library-ar.png" alt="مكتبة المشاهدة بالعربي">
+
+</details>
 
 ## Layout
 
@@ -95,6 +144,12 @@ What a malicious torrent, magnet link or website could do, and what stops it:
 Dependencies: `cargo audit` reports `ringbuf` 0.4.8 (RUSTSEC-2026-0293) through librqbit's uTP code.
 It needs an element whose `Drop` panics; uTP only stores bytes, and uTP is off here, so it can't
 happen.
+
+## Contributing
+
+Bug reports, translations and pull requests are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md).
+Report security problems privately, as described in [SECURITY.md](SECURITY.md). Changes are listed
+in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 

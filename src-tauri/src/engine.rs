@@ -70,10 +70,7 @@ impl Engine {
                 .iter()
                 .filter_map(|t| t.parse().ok())
                 .collect(),
-            client_name_and_version: Some(format!(
-                "Flowbit {}",
-                env!("CARGO_PKG_VERSION")
-            )),
+            client_name_and_version: Some(format!("Flowbit {}", env!("CARGO_PKG_VERSION"))),
             ..Default::default()
         };
 
@@ -132,7 +129,10 @@ impl Engine {
     }
 
     pub async fn add_bytes(&self, bytes: Vec<u8>) -> anyhow::Result<usize> {
-        anyhow::ensure!(bytes.len() as u64 <= MAX_TORRENT_FILE, "not a valid .torrent file");
+        anyhow::ensure!(
+            bytes.len() as u64 <= MAX_TORRENT_FILE,
+            "not a valid .torrent file"
+        );
         self.add_torrent(AddTorrent::from_bytes(bytes), None).await
     }
 
@@ -153,7 +153,11 @@ impl Engine {
         .await
     }
 
-    async fn add_with(&self, add: AddTorrent<'_>, opts: AddTorrentOptions) -> anyhow::Result<usize> {
+    async fn add_with(
+        &self,
+        add: AddTorrent<'_>,
+        opts: AddTorrentOptions,
+    ) -> anyhow::Result<usize> {
         let response = self.session().add_torrent(add, Some(opts)).await?;
         match response {
             AddTorrentResponse::Added(id, _) | AddTorrentResponse::AlreadyManaged(id, _) => Ok(id),
@@ -231,7 +235,9 @@ impl Engine {
 
     pub fn list(&self) -> Vec<TorrentView> {
         self.session().with_torrents(|torrents| {
-            torrents.map(|(id, handle)| TorrentView::new(id, handle)).collect()
+            torrents
+                .map(|(id, handle)| TorrentView::new(id, handle))
+                .collect()
         })
     }
 
@@ -250,7 +256,7 @@ impl Engine {
                     name: fi.relative_filename.to_string_lossy().into_owned(),
                     length: fi.len,
                     progress: stats.file_progress.get(index).copied().unwrap_or(0),
-                    included: only.as_ref().map_or(true, |o| o.contains(&index)),
+                    included: only.as_ref().is_none_or(|o| o.contains(&index)),
                     padding: fi.attrs.padding,
                 })
                 .collect()
@@ -261,7 +267,9 @@ impl Engine {
     pub fn file_path(&self, id: usize, file: usize) -> anyhow::Result<PathBuf> {
         let handle = self.handle(id)?;
         let relative = handle.with_metadata(|meta| {
-            meta.file_infos.get(file).map(|fi| fi.relative_filename.clone())
+            meta.file_infos
+                .get(file)
+                .map(|fi| fi.relative_filename.clone())
         })?;
         let relative = relative.context("file not found")?;
         librqbit::safe_path::ensure_relative(&relative)?;
@@ -298,8 +306,12 @@ pub fn read_torrent_file(path: &Path) -> anyhow::Result<Vec<u8>> {
         .extension()
         .is_some_and(|e| e.eq_ignore_ascii_case("torrent"));
     anyhow::ensure!(is_torrent, "not a magnet link, URL or .torrent file");
-    let meta = std::fs::metadata(path).with_context(|| format!("couldn't read {}", path.display()))?;
-    anyhow::ensure!(meta.is_file() && meta.len() <= MAX_TORRENT_FILE, "not a valid .torrent file");
+    let meta =
+        std::fs::metadata(path).with_context(|| format!("couldn't read {}", path.display()))?;
+    anyhow::ensure!(
+        meta.is_file() && meta.len() <= MAX_TORRENT_FILE,
+        "not a valid .torrent file"
+    );
     Ok(std::fs::read(path)?)
 }
 
@@ -326,7 +338,10 @@ fn strip_loopback_trackers(magnet: &str) -> String {
     let kept: Vec<&str> = query
         .split('&')
         .filter(|param| match param.split_once('=') {
-            Some((key, value)) if key.eq_ignore_ascii_case("tr") || key.to_ascii_lowercase().starts_with("tr.") => {
+            Some((key, value))
+                if key.eq_ignore_ascii_case("tr")
+                    || key.to_ascii_lowercase().starts_with("tr.") =>
+            {
                 !url_host(&percent_decode(value)).is_some_and(is_loopback_host)
             }
             _ => true,
@@ -356,7 +371,9 @@ fn is_loopback_host(host: String) -> bool {
     match host.parse::<std::net::IpAddr>() {
         Ok(std::net::IpAddr::V4(ip)) => ip.is_loopback() || ip.is_unspecified(),
         Ok(std::net::IpAddr::V6(ip)) => {
-            ip.is_loopback() || ip.is_unspecified() || ip.to_ipv4_mapped().is_some_and(|v4| v4.is_loopback())
+            ip.is_loopback()
+                || ip.is_unspecified()
+                || ip.to_ipv4_mapped().is_some_and(|v4| v4.is_loopback())
         }
         // Decimal or hex forms of 127.0.0.1 ("2130706433", "0x7f000001")
         Err(_) => {
@@ -416,8 +433,12 @@ mod tests {
         assert_eq!(sanitize_component("com1.txt"), "_com1.txt");
         assert_eq!(sanitize_component("name. . "), "name");
         assert_eq!(sanitize_component(".."), "_");
-        assert_eq!(sanitize_component("Movie (2020) [1080p].mkv"), "Movie (2020) [1080p].mkv");
-        let p = safe_relative_path(["C:", "Windows", "evil.dll"].into_iter().map(Into::into)).unwrap();
+        assert_eq!(
+            sanitize_component("Movie (2020) [1080p].mkv"),
+            "Movie (2020) [1080p].mkv"
+        );
+        let p =
+            safe_relative_path(["C:", "Windows", "evil.dll"].into_iter().map(Into::into)).unwrap();
         assert_eq!(p, PathBuf::from("C_").join("Windows").join("evil.dll"));
         let base = PathBuf::from(r"D:\Downloads\Show");
         assert!(base.join(&p).starts_with(&base));
@@ -435,7 +456,6 @@ pub fn is_url_like(s: &str) -> bool {
         || (s.len() == 40 && s.chars().all(|c| c.is_ascii_hexdigit()))
         || (s.len() == 32 && s.chars().all(|c| c.is_ascii_alphanumeric()) && !s.contains('.'))
 }
-
 
 /// What the torrent list shows for each torrent
 #[derive(Serialize)]
@@ -524,7 +544,12 @@ impl TorrentView {
             peers,
             file_count: metadata
                 .as_ref()
-                .map(|m| m.info.iter_file_details().filter(|f| !f.attrs().padding).count())
+                .map(|m| {
+                    m.info
+                        .iter_file_details()
+                        .filter(|f| !f.attrs().padding)
+                        .count()
+                })
                 .unwrap_or(0),
             has_metadata: metadata.is_some(),
             has_poster: false,

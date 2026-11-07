@@ -37,7 +37,14 @@ pub fn is_media(name: &str) -> bool {
 
 /// Plays a stream URL in the bundled mpv, in its own window with mpv's own controls,
 /// shortcuts and subtitle rendering.
-pub fn play(mpv: &Path, data_dir: &Path, url: &str, title: &str, prefs: &Prefs, ipc_pipe: &str) -> anyhow::Result<()> {
+pub fn play(
+    mpv: &Path,
+    data_dir: &Path,
+    url: &str,
+    title: &str,
+    prefs: &Prefs,
+    ipc_pipe: &str,
+) -> anyhow::Result<()> {
     let watch_later = data_dir.join("watch_later");
     std::fs::create_dir_all(&watch_later).ok();
 
@@ -77,10 +84,16 @@ pub fn play(mpv: &Path, data_dir: &Path, url: &str, title: &str, prefs: &Prefs, 
 pub fn mpv_path(resource_dir: Option<PathBuf>) -> PathBuf {
     let candidates = [
         resource_dir.map(|d| d.join("resources").join("mpv").join("mpv.exe")),
-        std::env::current_exe()
-            .ok()
-            .and_then(|exe| exe.parent().map(|d| d.join("resources").join("mpv").join("mpv.exe"))),
-        Some(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources").join("mpv").join("mpv.exe")),
+        std::env::current_exe().ok().and_then(|exe| {
+            exe.parent()
+                .map(|d| d.join("resources").join("mpv").join("mpv.exe"))
+        }),
+        Some(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("resources")
+                .join("mpv")
+                .join("mpv.exe"),
+        ),
     ];
     candidates
         .into_iter()

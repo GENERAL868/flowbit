@@ -8,7 +8,9 @@
 use tauri::{Emitter, WebviewWindow};
 use webview2_com::{
     take_pwstr,
-    Microsoft::Web::WebView2::Win32::{ICoreWebView2File, ICoreWebView2WebMessageReceivedEventArgs2},
+    Microsoft::Web::WebView2::Win32::{
+        ICoreWebView2File, ICoreWebView2WebMessageReceivedEventArgs2,
+    },
     WebMessageReceivedEventHandler,
 };
 use windows::core::{Interface, PWSTR};

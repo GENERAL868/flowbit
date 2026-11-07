@@ -164,7 +164,10 @@ async fn add_bytes(state: State<'_, AppState>, bytes: Vec<u8>) -> CmdResult<usiz
 }
 
 #[tauri::command]
-async fn choose_torrent_file(app: AppHandle, state: State<'_, AppState>) -> CmdResult<Option<usize>> {
+async fn choose_torrent_file(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> CmdResult<Option<usize>> {
     let lang = state.lang();
     let picked = app
         .dialog()
@@ -185,11 +188,19 @@ async fn choose_torrent_file(app: AppHandle, state: State<'_, AppState>) -> CmdR
 
 /// Shares a folder or a file: creates a torrent and seeds it from where it is
 #[tauri::command]
-async fn create_torrent(app: AppHandle, state: State<'_, AppState>, folder: bool) -> CmdResult<Option<String>> {
+async fn create_torrent(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    folder: bool,
+) -> CmdResult<Option<String>> {
     let lang = state.lang();
     let dialog = app.dialog().file().set_title(i18n::t(
         lang,
-        if folder { "dialog.shareFolder" } else { "dialog.shareFile" },
+        if folder {
+            "dialog.shareFolder"
+        } else {
+            "dialog.shareFile"
+        },
     ));
     let picked = if folder {
         dialog.blocking_pick_folder()
@@ -242,18 +253,33 @@ async fn resume_all(state: State<'_, AppState>) -> CmdResult<()> {
 
 #[tauri::command]
 async fn remove(state: State<'_, AppState>, id: usize, delete_files: bool) -> CmdResult<()> {
-    state.engine().await?.delete(id, delete_files).await.map_err(err)
+    state
+        .engine()
+        .await?
+        .delete(id, delete_files)
+        .await
+        .map_err(err)
 }
 
 #[tauri::command]
 async fn set_files(state: State<'_, AppState>, id: usize, files: Vec<usize>) -> CmdResult<()> {
-    state.engine().await?.set_files(id, files).await.map_err(err)
+    state
+        .engine()
+        .await?
+        .set_files(id, files)
+        .await
+        .map_err(err)
 }
 
 /// Streams a file in mpv. Without a file index, plays the torrent's largest media
 /// file. While it plays, the watch library follows the position.
 #[tauri::command]
-async fn play(app: AppHandle, state: State<'_, AppState>, id: usize, file: Option<usize>) -> CmdResult<()> {
+async fn play(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    id: usize,
+    file: Option<usize>,
+) -> CmdResult<()> {
     let engine = state.engine().await?;
     let files = engine.files(id).map_err(err)?;
     let file = match file {
@@ -273,15 +299,28 @@ async fn play(app: AppHandle, state: State<'_, AppState>, id: usize, file: Optio
         .unwrap_or(file.name.clone());
     // A pipe name nobody can guess, so other programs can't take mpv's place
     let pipe = format!(r"\\.\pipe\flowbit-mpv-{}", stream_server::random_secret());
-    player::play(&state.mpv, &state.data_dir, &url, &title, &state.prefs(), &pipe).map_err(err)?;
+    player::play(
+        &state.mpv,
+        &state.data_dir,
+        &url,
+        &title,
+        &state.prefs(),
+        &pipe,
+    )
+    .map_err(err)?;
 
-    let key = library::key(&engine.handle(id).map_err(err)?.info_hash().as_string(), file.index);
-    state.library.update(&key, |s| s.last_played = library::now());
+    let key = library::key(
+        &engine.handle(id).map_err(err)?.info_hash().as_string(),
+        file.index,
+    );
+    state
+        .library
+        .update(&key, |s| s.last_played = library::now());
     tauri::async_runtime::spawn(async move {
         library::track_playback(pipe, |position, duration, ended| {
-            app.state::<AppState>()
-                .library
-                .update(&key, |s| library::apply_progress(s, position, duration, ended));
+            app.state::<AppState>().library.update(&key, |s| {
+                library::apply_progress(s, position, duration, ended)
+            });
             app.emit("library-changed", ()).ok();
         })
         .await;
@@ -292,10 +331,48 @@ async fn play(app: AppHandle, state: State<'_, AppState>, id: usize, file: Optio
 /// Files that run code when opened. Downloaded ones are shown in their folder
 /// instead, so one click on a file from a torrent can't run a program.
 const RUNNABLE_EXTENSIONS: &[&str] = &[
-    "exe", "com", "scr", "pif", "msi", "msp", "bat", "cmd", "ps1", "psm1", "vbs", "vbe", "js",
-    "jse", "wsf", "wsh", "hta", "lnk", "url", "reg", "cpl", "dll", "jar", "msc", "appref-ms",
-    "application", "gadget", "inf", "scf", "settingcontent-ms", "library-ms", "search-ms",
-    "diagcab", "chm", "xll", "website", "appx", "msix", "appinstaller", "iso", "img", "vhd",
+    "exe",
+    "com",
+    "scr",
+    "pif",
+    "msi",
+    "msp",
+    "bat",
+    "cmd",
+    "ps1",
+    "psm1",
+    "vbs",
+    "vbe",
+    "js",
+    "jse",
+    "wsf",
+    "wsh",
+    "hta",
+    "lnk",
+    "url",
+    "reg",
+    "cpl",
+    "dll",
+    "jar",
+    "msc",
+    "appref-ms",
+    "application",
+    "gadget",
+    "inf",
+    "scf",
+    "settingcontent-ms",
+    "library-ms",
+    "search-ms",
+    "diagcab",
+    "chm",
+    "xll",
+    "website",
+    "appx",
+    "msix",
+    "appinstaller",
+    "iso",
+    "img",
+    "vhd",
     "vhdx",
 ];
 
@@ -309,7 +386,12 @@ fn is_runnable(path: &Path) -> bool {
 /// Opens a downloaded file in its default app, or plays media in mpv. Programs and
 /// scripts are shown in their folder instead (see RUNNABLE_EXTENSIONS).
 #[tauri::command]
-async fn open_file(app: AppHandle, state: State<'_, AppState>, id: usize, file: usize) -> CmdResult<&'static str> {
+async fn open_file(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    id: usize,
+    file: usize,
+) -> CmdResult<&'static str> {
     let engine = state.engine().await?;
     let path = engine.file_path(id, file).map_err(err)?;
     if player::is_media(&path.to_string_lossy()) {
@@ -336,7 +418,10 @@ async fn show_in_folder(app: AppHandle, state: State<'_, AppState>, id: usize) -
     let engine = state.engine().await?;
     let handle = engine.handle(id).map_err(err)?;
     // Single-file torrents: select the file; others: open the torrent's folder
-    let single = engine.files(id).map(|f| f.iter().filter(|f| !f.padding).count() == 1).unwrap_or(false);
+    let single = engine
+        .files(id)
+        .map(|f| f.iter().filter(|f| !f.padding).count() == 1)
+        .unwrap_or(false);
     let target = match single.then(|| engine.file_path(id, 0)) {
         Some(Ok(path)) if path.exists() => path,
         _ => handle.output_folder().to_path_buf(),
@@ -364,7 +449,11 @@ async fn magnet_link(state: State<'_, AppState>, id: usize) -> CmdResult<String>
 }
 
 #[tauri::command]
-async fn save_torrent_file(app: AppHandle, state: State<'_, AppState>, id: usize) -> CmdResult<bool> {
+async fn save_torrent_file(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    id: usize,
+) -> CmdResult<bool> {
     let engine = state.engine().await?;
     let bytes = engine.torrent_bytes(id).map_err(err)?;
     let name = engine
@@ -604,7 +693,8 @@ fn show_main_window(app: &AppHandle) {
                         // The window only ever shows the app itself: no links out,
                         // whatever a torrent name or file might contain
                         .on_navigation(|url| {
-                            matches!(url.scheme(), "tauri") || url.host_str() == Some("tauri.localhost")
+                            matches!(url.scheme(), "tauri")
+                                || url.host_str() == Some("tauri.localhost")
                         })
                 })
                 .and_then(|b| b.build())
@@ -639,7 +729,9 @@ fn open_args(app: &AppHandle, args: Vec<String>) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         let state = app.state::<AppState>();
-        let Ok(engine) = state.engine().await else { return };
+        let Ok(engine) = state.engine().await else {
+            return;
+        };
         for source in sources {
             match engine.add(&source, None).await {
                 Ok(id) => app.emit("torrent-added", id).ok(),
@@ -656,7 +748,9 @@ async fn watch_torrents(app: AppHandle) {
     let mut last_count = 0;
     loop {
         let state = app.state::<AppState>();
-        let Ok(engine) = state.engine().await else { return };
+        let Ok(engine) = state.engine().await else {
+            return;
+        };
         let torrents = engine.list();
         let prefs = state.prefs();
         for t in &torrents {
@@ -665,9 +759,17 @@ async fn watch_torrents(app: AppHandle) {
                 if !state.library.is_shared(&t.info_hash) {
                     let paths: Vec<PathBuf> = engine
                         .files(t.id)
-                        .map(|files| files.iter().filter(|f| !f.padding).filter_map(|f| engine.file_path(t.id, f.index).ok()).collect())
+                        .map(|files| {
+                            files
+                                .iter()
+                                .filter(|f| !f.padding)
+                                .filter_map(|f| engine.file_path(t.id, f.index).ok())
+                                .collect()
+                        })
                         .unwrap_or_default();
-                    tauri::async_runtime::spawn_blocking(move || paths.iter().for_each(|p| posters::mark_of_the_web(p)));
+                    tauri::async_runtime::spawn_blocking(move || {
+                        paths.iter().for_each(|p| posters::mark_of_the_web(p))
+                    });
                 }
                 if first {
                     continue;
@@ -686,7 +788,9 @@ async fn watch_torrents(app: AppHandle) {
         }
         finished.retain(|hash| torrents.iter().any(|t| &t.info_hash == hash));
         if first || torrents.len() != last_count {
-            state.library.retain(&torrents.iter().map(|t| t.info_hash.clone()).collect());
+            state
+                .library
+                .retain(&torrents.iter().map(|t| t.info_hash.clone()).collect());
         }
         last_count = torrents.len();
         first = false;
@@ -754,14 +858,25 @@ fn tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         &[
             &MenuItem::with_id(app, "show", i18n::t(lang, "tray.show"), true, None::<&str>)?,
             &PredefinedMenuItem::separator(app)?,
-            &MenuItem::with_id(app, "pause-all", i18n::t(lang, "tray.pause"), true, None::<&str>)?,
-            &MenuItem::with_id(app, "resume-all", i18n::t(lang, "tray.resume"), true, None::<&str>)?,
+            &MenuItem::with_id(
+                app,
+                "pause-all",
+                i18n::t(lang, "tray.pause"),
+                true,
+                None::<&str>,
+            )?,
+            &MenuItem::with_id(
+                app,
+                "resume-all",
+                i18n::t(lang, "tray.resume"),
+                true,
+                None::<&str>,
+            )?,
             &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(app, "quit", i18n::t(lang, "tray.quit"), true, None::<&str>)?,
         ],
     )
 }
-
 
 /// Saves the session and quits, waiting at most a few seconds
 fn quit_app(app: &AppHandle) {
@@ -770,7 +885,9 @@ fn quit_app(app: &AppHandle) {
         let state = app.state::<AppState>();
         if let Some(Ok(engine)) = state.engine.get() {
             let stop = engine.session().stop();
-            tokio::time::timeout(Duration::from_secs(4), stop).await.ok();
+            tokio::time::timeout(Duration::from_secs(4), stop)
+                .await
+                .ok();
         }
         app.exit(0);
     });
@@ -809,7 +926,12 @@ fn disk_space(path: &Path) -> Option<(u64, u64)> {
     use std::os::windows::ffi::OsStrExt;
     #[link(name = "kernel32")]
     extern "system" {
-        fn GetDiskFreeSpaceExW(dir: *const u16, free_to_caller: *mut u64, total: *mut u64, total_free: *mut u64) -> i32;
+        fn GetDiskFreeSpaceExW(
+            dir: *const u16,
+            free_to_caller: *mut u64,
+            total: *mut u64,
+            total_free: *mut u64,
+        ) -> i32;
     }
     // The folder might not exist yet: ask about the closest existing parent
     let existing = path.ancestors().find(|p| p.exists())?;
@@ -842,7 +964,9 @@ fn format_bytes(n: u64) -> String {
 fn url_component(s: &str) -> String {
     s.bytes()
         .map(|b| match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => (b as char).to_string(),
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                (b as char).to_string()
+            }
             _ => format!("%{b:02X}"),
         })
         .collect()
@@ -850,6 +974,12 @@ fn url_component(s: &str) -> String {
 
 fn sanitize_file_name(name: &str) -> String {
     name.chars()
-        .map(|c| if "<>:\"/\\|?*".contains(c) || c.is_control() { '_' } else { c })
+        .map(|c| {
+            if "<>:\"/\\|?*".contains(c) || c.is_control() {
+                '_'
+            } else {
+                c
+            }
+        })
         .collect()
 }

@@ -65,9 +65,13 @@ pub struct Document {
 }
 
 pub fn read(path: &Path) -> anyhow::Result<Document> {
-    let format = Format::from_path(path).context("not a subtitle file (.srt, .vtt, .ass or .ssa)")?;
+    let format =
+        Format::from_path(path).context("not a subtitle file (.srt, .vtt, .ass or .ssa)")?;
     let meta = std::fs::metadata(path)?;
-    anyhow::ensure!(meta.len() <= MAX_SUBTITLE_BYTES, "subtitle file is too large");
+    anyhow::ensure!(
+        meta.len() <= MAX_SUBTITLE_BYTES,
+        "subtitle file is too large"
+    );
     let bytes = std::fs::read(path)?;
     Ok(parse(format, &decode(&bytes)))
 }
@@ -81,7 +85,13 @@ fn decode(bytes: &[u8]) -> String {
         let le = bytes[0] == 0xFF;
         let units: Vec<u16> = bytes[2..]
             .chunks_exact(2)
-            .map(|c| if le { u16::from_le_bytes([c[0], c[1]]) } else { u16::from_be_bytes([c[0], c[1]]) })
+            .map(|c| {
+                if le {
+                    u16::from_le_bytes([c[0], c[1]])
+                } else {
+                    u16::from_be_bytes([c[0], c[1]])
+                }
+            })
             .collect();
         return String::from_utf16_lossy(&units);
     }
@@ -93,8 +103,17 @@ fn decode(bytes: &[u8]) -> String {
 
 pub fn parse(format: Format, text: &str) -> Document {
     let eol = if text.contains("\r\n") { "\r\n" } else { "\n" };
-    let lines: Vec<&str> = text.split('\n').map(|l| l.strip_suffix('\r').unwrap_or(l)).collect();
-    let mut doc = Document { format, parts: Vec::new(), cues: Vec::new(), eol, bom: true };
+    let lines: Vec<&str> = text
+        .split('\n')
+        .map(|l| l.strip_suffix('\r').unwrap_or(l))
+        .collect();
+    let mut doc = Document {
+        format,
+        parts: Vec::new(),
+        cues: Vec::new(),
+        eol,
+        bom: true,
+    };
     match format {
         Format::Srt | Format::Vtt => parse_blocks(&mut doc, &lines),
         Format::Ass => parse_ass(&mut doc, &lines),
@@ -190,7 +209,11 @@ impl Document {
 
     /// The text of the first subtitles, for a preview
     pub fn preview(&self, count: usize) -> Vec<String> {
-        self.cues.iter().take(count).map(|c| c.units.join(" ")).collect()
+        self.cues
+            .iter()
+            .take(count)
+            .map(|c| c.units.join(" "))
+            .collect()
     }
 
     /// Writes the file back with each cue's units replaced by `translated` (same
@@ -201,7 +224,11 @@ impl Document {
         if self.bom {
             out.push('\u{FEFF}');
         }
-        let line_break = if self.format == Format::Ass { "\\N" } else { self.eol };
+        let line_break = if self.format == Format::Ass {
+            "\\N"
+        } else {
+            self.eol
+        };
         for part in &self.parts {
             match part {
                 Part::Raw(s) => out.push_str(s),
@@ -209,7 +236,10 @@ impl Document {
                     let cue = &self.cues[*i];
                     let mut lines = cue.render_lines(&translated[*i]);
                     if rtl {
-                        lines = lines.into_iter().map(|l| format!("\u{202B}{l}\u{202C}")).collect();
+                        lines = lines
+                            .into_iter()
+                            .map(|l| format!("\u{202B}{l}\u{202C}"))
+                            .collect();
                     }
                     if bilingual {
                         lines.extend(cue.render_lines(&cue.units));
@@ -267,26 +297,42 @@ fn cue_from_lines(lines: &[&str], ass: bool) -> Cue {
     let first = lines.first().copied().unwrap_or_default();
     let last = lines.last().copied().unwrap_or_default();
     let prefix = leading_tags(first, ass);
-    let suffix = if ass { String::new() } else { trailing_tags(last) };
+    let suffix = if ass {
+        String::new()
+    } else {
+        trailing_tags(last)
+    };
 
     let clean: Vec<String> = lines
         .iter()
         .map(|l| strip_tags(l).trim().to_owned())
         .filter(|l| !l.is_empty())
         .collect();
-    let is_dialogue = clean.len() >= 2 && clean.iter().all(|l| l.starts_with('-') || l.starts_with('–'));
+    let is_dialogue = clean.len() >= 2
+        && clean
+            .iter()
+            .all(|l| l.starts_with('-') || l.starts_with('–'));
     let (dashes, units) = if is_dialogue {
         clean
             .iter()
             .map(|l| {
-                let dash: String = l.chars().take_while(|c| *c == '-' || *c == '–' || *c == ' ').collect();
+                let dash: String = l
+                    .chars()
+                    .take_while(|c| *c == '-' || *c == '–' || *c == ' ')
+                    .collect();
                 (dash.clone(), l[dash.len()..].trim().to_owned())
             })
             .unzip()
     } else {
         (vec![String::new()], vec![clean.join(" ")])
     };
-    Cue { prefix, suffix, dashes, units, line_count: clean.len().max(1) }
+    Cue {
+        prefix,
+        suffix,
+        dashes,
+        units,
+        line_count: clean.len().max(1),
+    }
 }
 
 /// Formatting at the start of a line: "{\an8}", "{\i1}", "<i>", "<font ...>"
@@ -347,10 +393,15 @@ pub fn strip_tags(s: &str) -> String {
 /// "Show - 05.en.srt" -> "Show - 05.ar.srt", next to the original
 pub fn output_path(source: &Path, target_lang: &str) -> PathBuf {
     let ext = source.extension().and_then(|e| e.to_str()).unwrap_or("srt");
-    let mut stem = source.file_stem().and_then(|s| s.to_str()).unwrap_or("subtitles").to_owned();
+    let mut stem = source
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("subtitles")
+        .to_owned();
     // Drop a language code already there ("name.en", "name.eng", "name.pt-BR")
     if let Some((base, code)) = stem.rsplit_once('.') {
-        let looks_like_lang = (2..=3).contains(&code.len()) && code.chars().all(|c| c.is_ascii_alphabetic())
+        let looks_like_lang = (2..=3).contains(&code.len())
+            && code.chars().all(|c| c.is_ascii_alphabetic())
             || (code.len() == 5 && code.as_bytes()[2] == b'-');
         if looks_like_lang && !base.is_empty() {
             stem = base.to_owned();
@@ -372,11 +423,18 @@ mod tests {
         assert_eq!(doc.cues[1].units, vec!["Who?", "Me."]);
         let same: Vec<Vec<String>> = doc.cues.iter().map(|c| c.units.clone()).collect();
         let out = doc.render(&same, false, false);
-        assert!(out.contains("00:00:01,000 --> 00:00:02,500\r\n<i>Hello there, my friend.</i>\r\n\r\n2\r\n"));
+        assert!(out.contains(
+            "00:00:01,000 --> 00:00:02,500\r\n<i>Hello there, my friend.</i>\r\n\r\n2\r\n"
+        ));
         assert!(out.contains("- Who?\r\n- Me."));
-        let t = vec![vec!["مرحبا يا صديقي العزيز، كيف حالك اليوم؟ أتمنى أن تكون بخير".to_owned()], vec!["من؟".to_owned(), "أنا.".to_owned()]];
+        let t = vec![
+            vec!["مرحبا يا صديقي العزيز، كيف حالك اليوم؟ أتمنى أن تكون بخير".to_owned()],
+            vec!["من؟".to_owned(), "أنا.".to_owned()],
+        ];
         let out = doc.render(&t, true, false);
-        assert!(out.contains("00:00:03,000 --> 00:00:04,000\r\n\u{202B}- من؟\u{202C}\r\n\u{202B}- أنا.\u{202C}"));
+        assert!(out.contains(
+            "00:00:03,000 --> 00:00:04,000\r\n\u{202B}- من؟\u{202C}\r\n\u{202B}- أنا.\u{202C}"
+        ));
     }
 
     #[test]
@@ -386,13 +444,20 @@ mod tests {
         assert_eq!(doc.cues.len(), 1);
         assert_eq!(doc.cues[0].units, vec!["Hello, world"]);
         let out = doc.render(&[vec!["مرحبا بالعالم".to_owned()]], false, false);
-        assert!(out.contains("Dialogue: 0,0:00:01.00,0:00:02.00,Default,,0,0,0,,{\\an8}مرحبا بالعالم\n"));
+        assert!(out
+            .contains("Dialogue: 0,0:00:01.00,0:00:02.00,Default,,0,0,0,,{\\an8}مرحبا بالعالم\n"));
         assert!(out.contains("{\\p1}m 0 0 l 10 10{\\p0}"));
     }
 
     #[test]
     fn output_names() {
-        assert_eq!(output_path(Path::new(r"C:\a\Show - 05.en.srt"), "ar"), PathBuf::from(r"C:\a\Show - 05.ar.srt"));
-        assert_eq!(output_path(Path::new(r"C:\a\Show - 05.ass"), "ar"), PathBuf::from(r"C:\a\Show - 05.ar.ass"));
+        assert_eq!(
+            output_path(Path::new(r"C:\a\Show - 05.en.srt"), "ar"),
+            PathBuf::from(r"C:\a\Show - 05.ar.srt")
+        );
+        assert_eq!(
+            output_path(Path::new(r"C:\a\Show - 05.ass"), "ar"),
+            PathBuf::from(r"C:\a\Show - 05.ar.ass")
+        );
     }
 }
