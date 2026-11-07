@@ -1,0 +1,7 @@
+* text=auto
+*.wav binary
+*.woff2 binary
+*.ico binary
+*.icns binary
+*.png binary
+*.torrent binary

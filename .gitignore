@@ -1,0 +1,6 @@
+node_modules/
+src-tauri/target*/
+src-tauri/gen/schemas/
+
+# mpv.exe is over GitHub's 100 MB file limit: see "Building" in README.md
+src-tauri/resources/mpv/mpv.exe

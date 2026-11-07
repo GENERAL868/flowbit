@@ -1,0 +1,557 @@
+/*
+ * Additions for the Rust version: the window has a native title bar, playback
+ * happens in mpv, and torrents have a "more" menu.
+ */
+
+body {
+  font-family: 'Manrope', system-ui, sans-serif;
+}
+
+.torrent-actions {
+  position: relative;
+}
+
+/* The list redraws every second: only fade in torrents that just appeared.
+   No clipping, so the "more" menu can open past the card's edge. */
+.torrent {
+  animation: none;
+  overflow: visible;
+  position: relative;
+}
+
+.torrent.menu-open {
+  z-index: 2;
+}
+
+/* The last torrent's menu opens upward, so it isn't cut off below the list */
+.torrent:last-child:not(:first-child) .menu {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+
+.torrent-files {
+  border-radius: 0 0 16px 16px;
+}
+
+.torrent.new {
+  animation: fadein 0.3s;
+}
+
+/* Dropdown menu under a torrent's "more" button */
+.menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 3;
+  min-width: 220px;
+  padding: 6px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line-control);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  animation: fadein 0.12s;
+}
+
+.menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu button:hover {
+  background: var(--surface-3);
+}
+
+.menu button.danger {
+  color: var(--coral-text);
+}
+
+.menu hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 4px 2px;
+}
+
+/* Short confirmations, like "Magnet link copied" */
+.error-popover .info {
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  animation: fadein 0.2s;
+}
+
+.error-popover .info .icon {
+  color: var(--accent-text);
+  margin-top: 1px;
+}
+
+.modal-content .check-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-2);
+}
+
+.pref-row .input.short {
+  width: 120px;
+}
+
+.pref-row .input.medium {
+  width: 220px;
+}
+
+.about {
+  color: var(--text-3);
+  font-size: 12px;
+  padding: 8px 0 24px;
+}
+
+.loading {
+  padding: 48px 16px;
+  color: var(--text-3);
+  text-align: center;
+}
+
+.btn.small {
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 8px;
+  gap: 6px;
+}
+
+/* Right to left: the "more" menu opens from the start edge either way */
+.menu {
+  left: auto;
+  inset-inline-start: 0;
+}
+
+.path {
+  direction: ltr;
+  unicode-bidi: plaintext;
+}
+
+/* Posters: a frame from the video, as the background */
+.poster.has-image {
+  background-size: cover;
+  background-position: center;
+  color: transparent;
+}
+
+/*
+ * WATCH LIBRARY
+ */
+
+.library .page-header .segmented {
+  margin-inline-start: auto;
+}
+
+.lib-section h2,
+.show-header h2 {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.lib-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.continue-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+.continue-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.continue-card:hover {
+  border-color: var(--line-control);
+}
+
+.continue-card .title {
+  font-weight: 700;
+}
+
+.sub {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.poster.wide {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  position: relative;
+  color: var(--text-3);
+}
+
+.play-badge {
+  position: absolute;
+  inset-inline-end: 8px;
+  bottom: 8px;
+  display: flex;
+  padding: 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.show {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+
+.show-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+}
+
+.show-info {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.show-info .progress {
+  max-width: 320px;
+}
+
+.episodes {
+  border-top: 1px solid var(--line);
+  padding: 6px 16px 10px;
+}
+
+.episode {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  border-radius: 8px;
+}
+
+.episode .file-open {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.episode.watched .file-open {
+  color: var(--text-3);
+}
+
+.ep-number {
+  flex: none;
+  min-width: 44px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sky-text);
+}
+
+.chip .icon {
+  margin-inline-end: 4px;
+}
+
+/*
+ * SUBTITLE TRANSLATOR
+ */
+
+.translator {
+  max-width: 880px;
+}
+
+.translator .intro {
+  color: var(--text-2);
+  margin-bottom: 18px;
+}
+
+.translator .dashed {
+  margin-bottom: 18px;
+}
+
+.tr-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 0 14px;
+  color: var(--text-2);
+}
+
+.tr-preview p {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.tr-torrent-subs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 12px;
+}
+
+.engines {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  padding: 6px 0 12px;
+}
+
+.engine {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line-control);
+  cursor: pointer;
+}
+
+.engine.selected {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+}
+
+.engine input {
+  margin-top: 3px;
+  accent-color: var(--accent);
+}
+
+.engine .text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.engine .label {
+  font-weight: 700;
+}
+
+.engine .hint {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+select.input {
+  appearance: auto;
+  cursor: pointer;
+}
+
+.tr-progress {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 0 24px;
+}
+
+.tr-progress .progress {
+  flex: 1 1 auto;
+}
+
+.notice.ok {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+}
+
+.notice.ok .icon {
+  color: var(--accent-text);
+}
+
+.notice .btn.small {
+  margin-top: 8px;
+}
+
+.translator .modal-actions {
+  padding-bottom: 32px;
+}
+
+.file-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0 8px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+/* More sections in the sidebar now: a little tighter, so it fits without scrolling */
+.sidebar {
+  gap: 14px;
+}
+
+.sidebar .group-title {
+  padding-bottom: 4px;
+}
+
+/*
+ * WIDE AND MAXIMIZED WINDOWS: pages stay centered at a readable width instead of
+ * hugging one side, and the translator uses two columns when there's room
+ */
+
+.page {
+  width: 100%;
+  max-width: 1320px;
+  margin-inline: auto;
+}
+
+.preferences {
+  max-width: 980px;
+}
+
+.translator {
+  max-width: 1320px;
+}
+
+.translator .intro {
+  max-width: 820px;
+}
+
+.tr-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.tr-column {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
+@media (min-width: 1280px) {
+  .tr-layout {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  }
+
+  /* The file stays in view while you scroll through the settings */
+  .tr-layout > .tr-column:first-child {
+    position: sticky;
+    top: 0;
+  }
+}
+
+.engines {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.engine-about {
+  color: var(--text-2);
+  font-size: 13px;
+  padding: 4px 0 6px;
+}
+
+.key-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.key-saved {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.button-row.start {
+  justify-content: flex-start;
+  padding: 6px 0 2px;
+}
+
+.guide {
+  margin: 4px 0 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+
+.guide summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--sky-text);
+}
+
+.guide ol {
+  margin: 8px 0 0;
+  padding-inline-start: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--text-2);
+  line-height: 1.6;
+}
+
+.guide code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--surface-3);
+  color: var(--text);
+  direction: ltr;
+  unicode-bidi: isolate;
+  user-select: all;
+}
+
+.glossary {
+  padding: 10px 0;
+  gap: 6px;
+}
+
+.glossary .label {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.pref-section > .field-hint {
+  display: block;
+  padding-bottom: 8px;
+}
+
+/* Four engines: two by two, never three and one */
+.engines {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
