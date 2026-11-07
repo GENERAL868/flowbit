@@ -44,7 +44,7 @@ jobs:
           npx tauri build --bundles deb,rpm,appimage
 
       - name: Start the app
-        run: ./.github/scripts/linux-smoke-test.sh src-tauri/target/release/flowbit
+        run: ./.github/scripts/linux-smoke-test.sh src-tauri/target/release/flowbit .github/test-data/ubuntu-24.04.3-live-server-amd64.iso.torrent
 
       - name: Attach them to the release
         env:
