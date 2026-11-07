@@ -221,8 +221,16 @@ impl Engine {
         }
     }
 
-    /// Makes sure a file is being downloaded, so it can be streamed
+    /// Makes sure a file is being downloaded, so it can be streamed. A file that's
+    /// already complete streams from disk, even with the torrent paused.
     pub async fn include_file(&self, id: usize, file: usize) -> anyhow::Result<()> {
+        let complete = self
+            .files(id)?
+            .iter()
+            .any(|f| f.index == file && f.length > 0 && f.progress >= f.length);
+        if complete {
+            return Ok(());
+        }
         let handle = self.handle(id)?;
         if let Some(mut only) = handle.only_files() {
             if !only.contains(&file) {

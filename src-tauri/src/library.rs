@@ -30,6 +30,8 @@ struct LibraryFile {
     items: HashMap<String, WatchState>,
     /// Torrents we created from the user's own files (no Mark of the Web for those)
     shared: HashSet<String>,
+    /// Finished torrents the user chose to keep seeding (not paused automatically)
+    seeding: HashSet<String>,
 }
 
 pub struct Library {
@@ -82,14 +84,32 @@ impl Library {
         self.data.lock().unwrap().shared.contains(info_hash)
     }
 
+    pub fn set_seeding(&self, info_hash: &str, seeding: bool) {
+        let mut data = self.data.lock().unwrap();
+        let changed = if seeding {
+            data.seeding.insert(info_hash.to_owned())
+        } else {
+            data.seeding.remove(info_hash)
+        };
+        if changed {
+            self.save(&data);
+        }
+    }
+
+    pub fn is_seeding(&self, info_hash: &str) -> bool {
+        self.data.lock().unwrap().seeding.contains(info_hash)
+    }
+
     /// Forgets torrents that were removed
     pub fn retain(&self, info_hashes: &HashSet<String>) {
         let mut data = self.data.lock().unwrap();
-        let before = data.items.len() + data.shared.len();
+        let count = |d: &LibraryFile| d.items.len() + d.shared.len() + d.seeding.len();
+        let before = count(&data);
         data.items
             .retain(|k, _| k.split(':').next().is_some_and(|h| info_hashes.contains(h)));
         data.shared.retain(|h| info_hashes.contains(h));
-        if data.items.len() + data.shared.len() != before {
+        data.seeding.retain(|h| info_hashes.contains(h));
+        if count(&data) != before {
             self.save(&data);
         }
     }

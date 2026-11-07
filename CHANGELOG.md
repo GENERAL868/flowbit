@@ -2,6 +2,19 @@
 
 All notable changes to Flowbit. Versions follow [Semantic Versioning](https://semver.org).
 
+## [1.3.1] - 2026-11-07
+
+### Added
+
+- **Stop when a download finishes** (Preferences → Downloads, on by default): finished torrents
+  pause instead of seeding. Press **Start seeding** on a torrent to keep sharing it, and Flowbit
+  remembers that choice. Files and folders you share yourself always seed.
+
+### Changed
+
+- Playing a file that's already downloaded no longer restarts the torrent: it plays from disk.
+- "Resume all" (window and tray) leaves finished torrents stopped.
+
 ## [1.3.0] - 2026-11-07
 
 First public release.
@@ -46,4 +59,5 @@ First public release.
 - Programs and scripts from torrents are revealed, not run; other downloads get the Mark of the Web
 - The window can only navigate inside the app and only listen to events
 
+[1.3.1]: https://github.com/GENERAL868/flowbit/releases/tag/v1.3.1
 [1.3.0]: https://github.com/GENERAL868/flowbit/releases/tag/v1.3.0

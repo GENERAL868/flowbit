@@ -223,14 +223,35 @@ fn mark_shared(state: &AppState, engine: &Engine, id: usize) {
     }
 }
 
+/// Whether a finished torrent gets paused instead of seeding: not the user's own
+/// shares, and not ones they started seeding themselves
+fn stops_when_done(state: &AppState, prefs: &Prefs, t: &TorrentView) -> bool {
+    prefs.stop_seeding_when_done
+        && t.finished
+        && t.has_metadata
+        && !state.library.is_shared(&t.info_hash)
+        && !state.library.is_seeding(&t.info_hash)
+}
+
 #[tauri::command]
 async fn pause(state: State<'_, AppState>, id: usize) -> CmdResult<()> {
-    state.engine().await?.pause(id).await.map_err(err)
+    let engine = state.engine().await?;
+    if let Ok(handle) = engine.handle(id) {
+        state
+            .library
+            .set_seeding(&handle.info_hash().as_string(), false);
+    }
+    engine.pause(id).await.map_err(err)
 }
 
 #[tauri::command]
 async fn resume(state: State<'_, AppState>, id: usize) -> CmdResult<()> {
-    state.engine().await?.resume(id).await.map_err(err)
+    let engine = state.engine().await?;
+    // Resuming a finished torrent means "start seeding": keep it that way
+    if let Some(t) = engine.list().into_iter().find(|t| t.id == id && t.finished) {
+        state.library.set_seeding(&t.info_hash, true);
+    }
+    engine.resume(id).await.map_err(err)
 }
 
 #[tauri::command]
@@ -245,10 +266,19 @@ async fn pause_all(state: State<'_, AppState>) -> CmdResult<()> {
 #[tauri::command]
 async fn resume_all(state: State<'_, AppState>) -> CmdResult<()> {
     let engine = state.engine().await?;
-    for t in engine.list() {
-        engine.resume(t.id).await.ok();
-    }
+    resume_unfinished(&state, &engine).await;
     Ok(())
+}
+
+/// "Resume all": downloads continue, finished torrents stay stopped if they would
+/// be stopped anyway
+async fn resume_unfinished(state: &AppState, engine: &Engine) {
+    let prefs = state.prefs();
+    for t in engine.list() {
+        if !stops_when_done(state, &prefs, &t) {
+            engine.resume(t.id).await.ok();
+        }
+    }
 }
 
 #[tauri::command]
@@ -741,7 +771,8 @@ fn open_args(app: &AppHandle, args: Vec<String>) {
     });
 }
 
-/// Notifies when downloads finish, and keeps the tray tooltip's speeds current
+/// Notifies when downloads finish, pauses them if they shouldn't seed, and keeps
+/// the tray tooltip's speeds current
 async fn watch_torrents(app: AppHandle) {
     let mut finished: HashSet<String> = HashSet::new();
     let mut first = true;
@@ -754,6 +785,9 @@ async fn watch_torrents(app: AppHandle) {
         let torrents = engine.list();
         let prefs = state.prefs();
         for t in &torrents {
+            if t.state == "live" && stops_when_done(&state, &prefs, t) {
+                engine.pause(t.id).await.ok();
+            }
             if t.finished && t.has_metadata && finished.insert(t.info_hash.clone()) {
                 // Downloaded files get the Mark of the Web, like browser downloads
                 if !state.library.is_shared(&t.info_hash) {
@@ -834,12 +868,12 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
                 tauri::async_runtime::spawn(async move {
                     let state = app.state::<AppState>();
                     if let Ok(engine) = state.engine().await {
-                        for t in engine.list() {
-                            if pause {
+                        if pause {
+                            for t in engine.list() {
                                 engine.pause(t.id).await.ok();
-                            } else {
-                                engine.resume(t.id).await.ok();
                             }
+                        } else {
+                            resume_unfinished(&state, &engine).await;
                         }
                     }
                 });

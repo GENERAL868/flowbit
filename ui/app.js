@@ -919,6 +919,7 @@ function renderPreferences () {
       <section class="pref-section"><h2>${tt('prefs.downloads')}</h2>
         <div class="pref-row path-selector"><div class="text"><span class="label">${tt('prefs.location')}</span><span class="path mono" dir="ltr">${esc(p.downloadDir)}</span></div>
           <button type="button" class="btn" data-action="choose-download-dir">${tt('prefs.change')}</button></div>
+        ${check('stopSeedingWhenDone', 'prefs.stopSeeding', 'prefs.stopSeedingHint', p.stopSeedingWhenDone)}
         ${check('sortByName', 'prefs.sortByName', 'prefs.sortByNameHint', p.sortByName)}
       </section>
       <section class="pref-section"><h2>${tt('prefs.playback')}</h2>

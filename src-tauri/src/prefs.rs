@@ -13,6 +13,8 @@ pub struct Prefs {
     /// "system", "light" or "dark"
     pub theme: String,
     pub minimize_to_tray: bool,
+    /// Pause torrents when they finish downloading, instead of seeding them
+    pub stop_seeding_when_done: bool,
     pub sounds: bool,
     pub notifications: bool,
     pub sort_by_name: bool,
@@ -55,6 +57,7 @@ impl Default for Prefs {
             upload_limit: 0,
             theme: "system".into(),
             minimize_to_tray: true,
+            stop_seeding_when_done: true,
             sounds: true,
             notifications: true,
             sort_by_name: true,
