@@ -2,9 +2,9 @@
 
 All notable changes to Flowbit. Versions follow [Semantic Versioning](https://semver.org).
 
-## 0.1.0 - Unreleased
+## [0.1.0] - 2026-11-10
 
-Version numbers start over at 0.1.0 with this release. Releases 1.3.0 to 1.4.0 below came before it.
+Version numbers start over at 0.1.0 with this release. Versions 1.3.0 to 1.4.0 below came before it.
 
 ### Added
 
@@ -16,7 +16,7 @@ Version numbers start over at 0.1.0 with this release. Releases 1.3.0 to 1.4.0 b
 - Reopening Flowbit no longer repeats the "Download finished" notification for torrents that
   finished earlier.
 
-## [1.4.0] - 2026-11-07
+## 1.4.0 - 2026-11-07
 
 ### Added
 
@@ -31,7 +31,7 @@ Version numbers start over at 0.1.0 with this release. Releases 1.3.0 to 1.4.0 b
   - Executable files, `.desktop` launchers and scripts from torrents are shown in their folder
     instead of being opened.
 
-## [1.3.1] - 2026-11-07
+## 1.3.1 - 2026-11-07
 
 ### Added
 
@@ -49,7 +49,7 @@ Version numbers start over at 0.1.0 with this release. Releases 1.3.0 to 1.4.0 b
 - Explorer shows thumbnails for finished videos while the torrent is still in the list. Finished
   files used to stay open for writing, which kept other programs from reading them.
 
-## [1.3.0] - 2026-11-07
+## 1.3.0 - 2026-11-07
 
 First public release.
 
@@ -93,6 +93,4 @@ First public release.
 - Programs and scripts from torrents are revealed, not run; other downloads get the Mark of the Web
 - The window can only navigate inside the app and only listen to events
 
-[1.4.0]: https://github.com/GENERAL868/flowbit/releases/tag/v1.4.0
-[1.3.1]: https://github.com/GENERAL868/flowbit/releases/tag/v1.3.1
-[1.3.0]: https://github.com/GENERAL868/flowbit/releases/tag/v1.3.0
+[0.1.0]: https://github.com/GENERAL868/flowbit/releases/tag/v0.1.0
