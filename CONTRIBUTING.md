@@ -12,7 +12,7 @@ Security problems go through [private reporting](SECURITY.md), not public issues
 
 ## Building
 
-See [Building](README.md#building) in the README. In short: Rust (MSVC), Node.js 20+, `mpv.exe` in
+See [Building](docs/DEVELOPMENT.md#building). In short: Rust (MSVC), Node.js 20+, `mpv.exe` in
 `src-tauri/resources/mpv/`, then `npm install` and `npx tauri dev` for a debug window or
 `npx tauri build` for the installer.
 
