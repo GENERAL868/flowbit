@@ -7,12 +7,14 @@
 <p align="center">
   <strong>Watch torrents while they download.</strong><br>
   A free, open-source torrent client for Windows and Linux,<br>
-  with a watch library and a subtitle translator built in.
+  with a watch library and a subtitle translator built in.<br>
+  No ads, no account, nothing to pay.
 </p>
 
 <p align="center">
-  <a href="#windows"><img src="https://img.shields.io/badge/Download_for_Windows-3DDC97?style=for-the-badge" alt="Download for Windows"></a>
-  <a href="#linux"><img src="https://img.shields.io/badge/Download_for_Linux-3DDC97?style=for-the-badge" alt="Download for Linux"></a>
+  <a href="#windows"><img src="assets/download-windows.svg" height="48" alt="Download for Windows"></a>
+  &nbsp;
+  <a href="#linux"><img src="assets/download-linux.svg" height="48" alt="Download for Linux"></a>
 </p>
 
 <p align="center">
@@ -29,8 +31,6 @@
 <p align="center">
   <img src="docs/screenshots/home-en.png" width="900" alt="Flowbit's torrent list, with downloads in progress and finished torrents">
 </p>
-
-No ads, no account, nothing to pay.
 
 ## Features
 
@@ -74,7 +74,7 @@ Get the latest version from the **[Releases page](https://github.com/GENERAL868/
 
 For Windows 10 and 11, 64-bit. mpv is included.
 
-| File | |
+| File | What it is |
 |---|---|
 | `Flowbit-x.y.z-setup.exe` | Installer, for your account only (no admin rights) |
 | `Flowbit-x.y.z-portable.zip` | Portable: unzip anywhere and run `Flowbit.exe`; settings stay in the folder |
@@ -113,12 +113,10 @@ Flowbit is a general-purpose tool. Please download and share only what you have 
 
 ## Built with
 
-| | |
-|---|---|
-| **Torrent engine** | [librqbit](https://github.com/ikatson/rqbit), in Rust |
-| **App** | [Tauri](https://tauri.app) 2, on the system's webview |
-| **Player** | [mpv](https://mpv.io), in its own window with its own controls and shortcuts |
-| **Interface** | Plain JavaScript, no build step |
+- **Torrent engine:** [librqbit](https://github.com/ikatson/rqbit), in Rust
+- **App:** [Tauri](https://tauri.app) 2, on the system's webview
+- **Player:** [mpv](https://mpv.io), in its own window with its own controls and shortcuts
+- **Interface:** plain JavaScript, no build step
 
 ## Contributing
 

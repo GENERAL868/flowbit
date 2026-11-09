@@ -9,12 +9,14 @@
 <p align="center">
   <strong>شاهد التورنت وهو يُنزَّل.</strong><br>
   برنامج تورنت مجاني ومفتوح المصدر لويندوز ولينكس،<br>
-  فيه مكتبة للمشاهدة ومترجم للترجمات.
+  فيه مكتبة للمشاهدة ومترجم للترجمات.<br>
+  بدون إعلانات، وبدون حساب، ومجانًا بالكامل.
 </p>
 
 <p align="center">
-  <a href="#ويندوز"><img src="https://img.shields.io/badge/Download_for_Windows-3DDC97?style=for-the-badge" alt="تنزيل لويندوز"></a>
-  <a href="#لينكس"><img src="https://img.shields.io/badge/Download_for_Linux-3DDC97?style=for-the-badge" alt="تنزيل للينكس"></a>
+  <a href="#ويندوز"><img src="assets/download-windows-ar.svg" height="48" alt="تنزيل لويندوز"></a>
+  &nbsp;
+  <a href="#لينكس"><img src="assets/download-linux-ar.svg" height="48" alt="تنزيل للينكس"></a>
 </p>
 
 <p align="center">
@@ -31,8 +33,6 @@
 <p align="center">
   <img src="docs/screenshots/home-ar.png" width="900" alt="قائمة التورنتات في Flowbit بالعربية">
 </p>
-
-بدون إعلانات، وبدون حساب، ومجانًا بالكامل.
 
 ## المزايا
 
@@ -76,7 +76,7 @@
 
 لويندوز 10 و11 (64 بت)، و mpv مضمَّن معه.
 
-| الملف | |
+| الملف | الوصف |
 |---|---|
 | `Flowbit-x.y.z-setup.exe` | مثبّت لحسابك فقط، بدون صلاحيات المسؤول |
 | `Flowbit-x.y.z-portable.zip` | نسخة محمولة: فك الضغط في أي مكان وشغّل `Flowbit.exe`، وتبقى الإعدادات في المجلد نفسه |
@@ -111,7 +111,7 @@
 في <code dir="ltr">%LOCALAPPDATA%\app.flowbit.desktop</code> على ويندوز، و<code dir="ltr">~/.local/share/app.flowbit.desktop</code> على لينكس. أما النسخة المحمولة فتحفظها في مجلدها.
 </details>
 
-Flowbit أداة عامة الاستخدام، فالرجاء تنزيل ومشاركة ما يحق لك فقط.
+هذا البرنامج أداة عامة الاستخدام، فالرجاء تنزيل ومشاركة ما يحق لك فقط.
 
 ## المساهمة
 
@@ -124,6 +124,6 @@ Flowbit أداة عامة الاستخدام، فالرجاء تنزيل ومش�
 
 ## الرخصة
 
-[MIT](LICENSE). وللمكونات الخارجية رخصها الخاصة: librqbit (Apache-2.0) و mpv (GPL-2.0-or-later) والخطوط (SIL OFL 1.1). راجع [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+رخصة البرنامج هي [MIT](LICENSE)، وللمكونات الخارجية رخصها الخاصة: librqbit (Apache-2.0) و mpv (GPL-2.0-or-later) والخطوط (SIL OFL 1.1). التفاصيل في [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 </div>
