@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="176" height="48" viewBox="0 0 176 48" role="img" aria-label="تنزيل للينكس">
+  <rect width="176" height="48" rx="12" fill="#3DDC97"/>
+  <path transform="translate(134 12)" d="M12 4v11M7 10l5 5 5-5M4 19h16" fill="none" stroke="#0B0E13" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="76" y="30" text-anchor="middle" direction="rtl" font-family="'Segoe UI', Tahoma, 'Noto Sans Arabic', 'Geeza Pro', sans-serif" font-size="17" font-weight="700" fill="#0B0E13">تنزيل للينكس</text>
+</svg>
