@@ -657,6 +657,24 @@ textarea.input {
  * TORRENTS
  */
 
+.bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 32px;
+  margin-bottom: 10px;
+  padding-inline-start: 17px;
+}
+
+.bulk-bar .check-row {
+  margin-inline-end: auto;
+}
+
+.bulk-bar .count {
+  font-size: 13px;
+  color: var(--text-3);
+}
+
 .torrent-list {
   list-style: none;
   margin: 0;

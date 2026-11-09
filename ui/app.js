@@ -21,6 +21,7 @@ const state = {
   expanded: null, // id of the torrent whose files are shown
   files: {}, // torrent id -> file list
   menu: null, // id of the torrent whose "more" menu is open
+  selected: new Set(), // ids of the torrents ticked in the list
   modal: null,
   visible: true,
   engineError: null,
@@ -316,9 +317,32 @@ function renderHome () {
       : state.filter === 'all' ? tt('home.empty') : tt('home.emptyFilter')
     html = `<div class="empty"><strong>${message}</strong><span>${tt('home.emptyHint')}</span></div>`
   } else {
-    html = `<ul class="torrent-list">${torrents.map(renderTorrent).join('')}</ul>`
+    html = `${renderBulkBar(torrents)}<ul class="torrent-list">${torrents.map(renderTorrent).join('')}</ul>`
   }
   setHTML($('list'), html)
+
+  const selectAll = $('select-all')
+  if (selectAll) {
+    const count = selectedAmong(torrents).length
+    selectAll.indeterminate = count > 0 && count < torrents.length
+  }
+}
+
+// Only what's on screen counts, so a filter or search can't hide what gets removed
+function selectedAmong (torrents) {
+  return torrents.filter((t) => state.selected.has(t.id))
+}
+
+function renderBulkBar (torrents) {
+  const count = selectedAmong(torrents).length
+  const remove = count
+    ? `<span class="count mono">${tt('bulk.selected', { count })}</span>
+      <button type="button" class="btn small danger" data-action="remove-selected">${icon('trash', 16)}${tt('bulk.remove')}</button>`
+    : ''
+  return `<div class="bulk-bar">
+    <label class="check-row"><input type="checkbox" class="checkbox" id="select-all"${count === torrents.length ? ' checked' : ''}>${tt('bulk.selectAll')}</label>
+    ${remove}
+  </div>`
 }
 
 // Torrents already drawn once, so only new ones fade in
@@ -379,6 +403,7 @@ function renderTorrent (t) {
 
   return `<li class="torrent${expanded ? ' selected' : ''}${isNew ? ' new' : ''}${state.menu === t.id ? ' menu-open' : ''}" data-id="${t.id}">
     <div class="torrent-row" data-action="toggle-files" data-id="${t.id}">
+      <input type="checkbox" class="checkbox" data-action="select-torrent" data-id="${t.id}" aria-label="${tt('bulk.selectOne', { name })}"${state.selected.has(t.id) ? ' checked' : ''}>
       <div class="poster${posterClass(t.infoHash)}" aria-hidden="true">${initial}</div>
       <div class="torrent-info">
         <div class="torrent-name"><span class="name ellipsis" title="${esc(name)}">${esc(name)}</span><span class="chip ${st.cls}">${tt(st.key)}</span></div>
@@ -1060,6 +1085,16 @@ function renderModal () {
         ${tt('remove.deleteFiles')}</label>
       <div class="modal-actions"><button type="button" class="btn cancel" data-action="close-modal">${tt('common.cancel')}</button>
         <button type="button" class="btn danger" data-action="confirm-remove">${tt('remove.ok')}</button></div>`
+  } else if (m.id === 'remove-many') {
+    const names = state.snapshot.torrents
+      .filter((x) => m.torrents.includes(x.id))
+      .map((x) => `<li dir="auto">${esc(x.name || '…')}</li>`).join('')
+    body = `<h1>${tt('remove.titleMany', { count: m.torrents.length })}</h1>
+      <ul style="margin:0;padding-inline-start:20px;color:var(--text-2);max-height:160px;overflow:auto">${names}</ul>
+      <label class="check-row"><input type="checkbox" class="checkbox" id="delete-files">
+        ${tt('remove.deleteFilesMany')}</label>
+      <div class="modal-actions"><button type="button" class="btn cancel" data-action="close-modal">${tt('common.cancel')}</button>
+        <button type="button" class="btn danger" data-action="confirm-remove-many">${tt('remove.ok')}</button></div>`
   }
   root.innerHTML = `<div class="modal"><div class="modal-background" data-action="close-modal"></div>
     <section class="modal-content" role="dialog" aria-modal="true">${body}</section></div>`
@@ -1104,6 +1139,9 @@ async function refresh () {
     for (const id of Object.keys(state.files)) {
       if (!snapshot.torrents.some((x) => String(x.id) === id)) delete state.files[id]
     }
+    for (const id of state.selected) {
+      if (!snapshot.torrents.some((x) => x.id === id)) state.selected.delete(id)
+    }
     loadPosters(snapshot.torrents)
   } catch (err) {
     state.engineError = String(err)
@@ -1142,6 +1180,34 @@ async function addPathList (paths) {
   } catch (err) {
     showError(err)
   }
+}
+
+function onSelectTorrent (el) {
+  const id = Number(el.dataset.id)
+  if (el.checked) state.selected.add(id)
+  else state.selected.delete(id)
+  renderHome()
+}
+
+function onSelectAll (el) {
+  for (const t of visibleTorrents()) {
+    if (el.checked) state.selected.add(t.id)
+    else state.selected.delete(t.id)
+  }
+  renderHome()
+}
+
+// Keeps going if one fails, then reports the first error
+async function removeMany (ids, deleteFiles) {
+  let failure = null
+  for (const id of ids) {
+    try {
+      await invoke('remove', { id, deleteFiles })
+    } catch (err) {
+      failure = failure ?? err
+    }
+  }
+  if (failure !== null) throw failure
 }
 
 async function act (promise, after) {
@@ -1284,6 +1350,18 @@ function handleAction (el, event) {
       act(invoke('remove', { id: torrent, deleteFiles }))
       break
     }
+    case 'remove-selected':
+      openModal({ id: 'remove-many', torrents: selectedAmong(visibleTorrents()).map((x) => x.id) })
+      break
+    case 'confirm-remove-many': {
+      const deleteFiles = $('delete-files').checked
+      const ids = state.modal.torrents
+      closeModal()
+      sound('delete')
+      if (ids.includes(state.expanded)) state.expanded = null
+      act(removeMany(ids, deleteFiles))
+      break
+    }
     case 'set-pref':
       updatePref(el.dataset.pref, el.dataset.value)
       break
@@ -1408,6 +1486,8 @@ async function start () {
   document.addEventListener('change', (e) => {
     const el = e.target
     if (el.dataset.action === 'include-file') onIncludeFile(el)
+    else if (el.dataset.action === 'select-torrent') onSelectTorrent(el)
+    else if (el.id === 'select-all') onSelectAll(el)
     else if (el.dataset.action === 'set-watched') onSetWatched(el)
     else if (el.id === 'tr-save-as') state.tr.saveAs = el.checked
     else if (el.dataset.pref) onPrefInput(el)

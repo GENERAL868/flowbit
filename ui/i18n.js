@@ -96,6 +96,13 @@ const STRINGS = {
     'remove.title': 'Remove torrent?',
     'remove.deleteFiles': 'Also delete its downloaded files',
     'remove.ok': 'Remove',
+    'remove.titleMany': 'Remove {count} torrents?',
+    'remove.deleteFilesMany': 'Also delete their downloaded files',
+
+    'bulk.selectAll': 'Select all',
+    'bulk.selectOne': 'Select {name}',
+    'bulk.selected': '{count} selected',
+    'bulk.remove': 'Remove selected',
 
     'share.titleOne': 'Share this publicly?',
     'share.titleMany': 'Share these {count} publicly?',
@@ -373,6 +380,13 @@ const STRINGS = {
     'remove.title': 'حذف التورنت؟',
     'remove.deleteFiles': 'احذف ملفاته المنزّلة أيضًا',
     'remove.ok': 'حذف',
+    'remove.titleMany': 'حذف {count} من التورنتات؟',
+    'remove.deleteFilesMany': 'احذف ملفاتها المنزّلة أيضًا',
+
+    'bulk.selectAll': 'تحديد الكل',
+    'bulk.selectOne': 'تحديد {name}',
+    'bulk.selected': 'المحدد: {count}',
+    'bulk.remove': 'حذف المحدد',
 
     'share.titleOne': 'مشاركة هذا للجميع؟',
     'share.titleMany': 'مشاركة هذه الـ {count} للجميع؟',

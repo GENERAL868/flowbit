@@ -100,7 +100,8 @@ body {
   margin-top: 1px;
 }
 
-.modal-content .check-row {
+.modal-content .check-row,
+.bulk-bar .check-row {
   display: flex;
   align-items: center;
   gap: 10px;
