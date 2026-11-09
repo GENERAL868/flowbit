@@ -1,6 +1,6 @@
 [package]
 name = "flowbit"
-version = "1.4.0"
+version = "0.1.0"
 description = "Streaming torrent client"
 authors = ["Flowbit contributors"]
 license = "MIT"

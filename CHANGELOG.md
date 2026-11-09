@@ -2,6 +2,20 @@
 
 All notable changes to Flowbit. Versions follow [Semantic Versioning](https://semver.org).
 
+## 0.1.0 - Unreleased
+
+Version numbers start over at 0.1.0 with this release. Releases 1.3.0 to 1.4.0 below came before it.
+
+### Added
+
+- **Select all**: tick torrents in the list, or all of them, and remove them together, with or
+  without their files.
+
+### Fixed
+
+- Reopening Flowbit no longer repeats the "Download finished" notification for torrents that
+  finished earlier.
+
 ## [1.4.0] - 2026-11-07
 
 ### Added

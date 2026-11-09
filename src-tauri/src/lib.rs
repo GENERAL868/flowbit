@@ -813,10 +813,32 @@ fn open_args(app: &AppHandle, args: Vec<String>) {
     });
 }
 
+/// Tells downloads finishing now from finished torrents being reloaded at startup.
+/// While a restored torrent is being checked it reports "not finished", so it only
+/// counts once it has been seen missing data after the check.
+#[derive(Default)]
+struct FinishNotices {
+    restored: HashSet<String>,
+    incomplete: HashSet<String>,
+}
+
+impl FinishNotices {
+    fn observe(&mut self, info_hash: &str, state: &str, finished: bool) {
+        if !finished && matches!(state, "live" | "paused") {
+            self.incomplete.insert(info_hash.to_owned());
+        }
+    }
+
+    fn downloaded_now(&self, info_hash: &str) -> bool {
+        !self.restored.contains(info_hash) || self.incomplete.contains(info_hash)
+    }
+}
+
 /// Notifies when downloads finish, pauses them if they shouldn't seed, and keeps
 /// the tray tooltip's speeds current
 async fn watch_torrents(app: AppHandle) {
     let mut finished: HashSet<String> = HashSet::new();
+    let mut notices = FinishNotices::default();
     let mut first = true;
     let mut last_count = 0;
     loop {
@@ -826,7 +848,11 @@ async fn watch_torrents(app: AppHandle) {
         };
         let torrents = engine.list();
         let prefs = state.prefs();
+        if first {
+            notices.restored = torrents.iter().map(|t| t.info_hash.clone()).collect();
+        }
         for t in &torrents {
+            notices.observe(&t.info_hash, t.state, t.finished);
             if t.state == "live" && stops_when_done(&state, &prefs, t) {
                 engine.pause(t.id).await.ok();
             }
@@ -847,7 +873,7 @@ async fn watch_torrents(app: AppHandle) {
                         paths.iter().for_each(|p| posters::mark_of_the_web(p))
                     });
                 }
-                if first {
+                if !notices.downloaded_now(&t.info_hash) {
                     continue;
                 }
                 let name = t.name.clone().unwrap_or_else(|| "Torrent".into());
@@ -1073,4 +1099,48 @@ fn sanitize_file_name(name: &str) -> String {
             }
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn restored() -> FinishNotices {
+        FinishNotices {
+            restored: HashSet::from(["a".to_owned()]),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn a_finished_torrent_checked_at_startup_is_not_announced() {
+        let mut notices = restored();
+        notices.observe("a", "initializing", false);
+        notices.observe("a", "paused", true);
+        assert!(!notices.downloaded_now("a"));
+    }
+
+    #[test]
+    fn a_restored_download_that_completes_is_announced() {
+        let mut notices = restored();
+        notices.observe("a", "initializing", false);
+        notices.observe("a", "live", false);
+        notices.observe("a", "live", true);
+        assert!(notices.downloaded_now("a"));
+    }
+
+    #[test]
+    fn a_restored_torrent_that_failed_is_not_counted_as_incomplete() {
+        let mut notices = restored();
+        notices.observe("a", "error", false);
+        notices.observe("a", "paused", true);
+        assert!(!notices.downloaded_now("a"));
+    }
+
+    #[test]
+    fn a_torrent_added_while_running_is_announced() {
+        let mut notices = restored();
+        notices.observe("b", "live", true);
+        assert!(notices.downloaded_now("b"));
+    }
 }

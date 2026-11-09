@@ -1,6 +1,6 @@
 {
   "name": "flowbit",
-  "version": "1.4.0",
+  "version": "0.1.0",
   "private": true,
   "description": "Streaming torrent client for Windows: Rust (librqbit, Tauri) and mpv",
   "license": "MIT",
