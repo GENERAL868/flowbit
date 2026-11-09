@@ -1090,7 +1090,7 @@ function renderModal () {
       .filter((x) => m.torrents.includes(x.id))
       .map((x) => `<li dir="auto">${esc(x.name || '…')}</li>`).join('')
     body = `<h1>${tt('remove.titleMany', { count: m.torrents.length })}</h1>
-      <ul style="margin:0;padding-inline-start:20px;color:var(--text-2);max-height:160px;overflow:auto">${names}</ul>
+      <ul style="margin:0;padding:0;list-style:none;color:var(--text-2);max-height:160px;overflow:auto;overflow-wrap:anywhere">${names}</ul>
       <label class="check-row"><input type="checkbox" class="checkbox" id="delete-files">
         ${tt('remove.deleteFilesMany')}</label>
       <div class="modal-actions"><button type="button" class="btn cancel" data-action="close-modal">${tt('common.cancel')}</button>
