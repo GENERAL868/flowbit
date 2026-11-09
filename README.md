@@ -19,7 +19,7 @@
 
 <p align="center">
   <a href="https://github.com/GENERAL868/flowbit/releases/latest"><img src="https://img.shields.io/github/v/release/GENERAL868/flowbit?label=release&color=3DDC97&cacheSeconds=600" alt="Latest release"></a>
-  <a href="https://github.com/GENERAL868/flowbit/actions/workflows/ci.yml"><img src="https://github.com/GENERAL868/flowbit/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
+  <a href="https://github.com/GENERAL868/flowbit/actions/workflows/ci.yml"><img src="https://github.com/GENERAL868/flowbit/actions/workflows/ci.yml/badge.svg?event=pull_request" alt="CI status"></a>
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-blue" alt="Windows and Linux">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license"></a>
 </p>

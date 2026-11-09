@@ -1,8 +1,6 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
 
 permissions:
@@ -13,7 +11,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Only changes to the app itself get built and tested. The jobs below still report a
+  # result when they're skipped, so main's required checks don't wait for them.
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      app: ${{ steps.filter.outputs.app }}
+    steps:
+      - id: filter
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.number }}
+        run: |
+          # If the list can't be read, test anyway
+          files="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --paginate --jq '.[].filename')" \
+            || { echo "app=true" >> "$GITHUB_OUTPUT"; exit 0; }
+          if grep -qE '^(src-tauri/|ui/|package(-lock)?\.json$)' <<< "$files"; then
+            echo "app=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "app=false" >> "$GITHUB_OUTPUT"
+          fi
+
   windows:
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.app != 'false' }}
     runs-on: windows-latest
     defaults:
       run:
@@ -51,6 +74,8 @@ jobs:
           node --check i18n.js
 
   linux:
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.app != 'false' }}
     # The oldest supported Ubuntu, so the packages run on older distributions too
     runs-on: ubuntu-22.04
     steps:
